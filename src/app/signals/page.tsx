@@ -3,6 +3,8 @@ import { RiskSummaryCard } from "@/components/RiskSummaryCard";
 import { SignalChecklist } from "@/components/SignalChecklist";
 import { fetchLatestMarketRiskDaily, fetchLatestSignalEvents } from "@/lib/fetchMarketData";
 
+export const dynamic = "force-dynamic";
+
 export default async function SignalsPage() {
   const latestRisk = await fetchLatestMarketRiskDaily();
   const latestSignals = await fetchLatestSignalEvents();

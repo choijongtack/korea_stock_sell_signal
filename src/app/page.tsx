@@ -15,6 +15,8 @@ import {
   fetchLatestSignalEvents
 } from "@/lib/fetchMarketData";
 
+export const dynamic = "force-dynamic";
+
 type RangeFilter = "all" | "last5";
 
 const clampRangeFilter = (value: string | undefined): RangeFilter => (value === "last5" ? "last5" : "all");
