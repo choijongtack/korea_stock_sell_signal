@@ -46,6 +46,21 @@ export default function StockSearchBox({
     return () => window.clearTimeout(timer);
   }, [keyword, canSearch]);
 
+  useEffect(() => {
+    if (selectedStock || results.length === 0) return;
+    const normalized = keyword.trim().toUpperCase();
+    if (!normalized) return;
+
+    const exact = results.find((stock) => {
+      const code = stock.stock_code.trim().toUpperCase();
+      const name = stock.stock_name.trim().toUpperCase();
+      return code === normalized || name === normalized;
+    });
+
+    if (exact) handleSelect(exact);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, keyword, selectedStock]);
+
   function handleSelect(stock: StockSearchResult) {
     setSelectedStock(stock);
     setKeyword(`${stock.stock_name} (${stock.stock_code})`);
@@ -62,6 +77,12 @@ export default function StockSearchBox({
             setKeyword(event.target.value);
             setSelectedStock(null);
           }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && results.length > 0 && !selectedStock) {
+              event.preventDefault();
+              handleSelect(results[0]);
+            }
+          }}
           placeholder={placeholder}
           className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
@@ -70,6 +91,12 @@ export default function StockSearchBox({
       </div>
 
       {errorMessage && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{errorMessage}</div>}
+
+      {!selectedStock && (
+        <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          검색 결과를 클릭해 선택하거나, Enter 키로 첫 결과를 선택하세요.
+        </div>
+      )}
 
       {results.length > 0 && !selectedStock && (
         <div className="max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm">

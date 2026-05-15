@@ -1,0 +1,17 @@
+
+> dev
+> next dev --port 3010
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3010
+- Network:       http://192.168.219.103:3010
+- Environments: .env.local
+✓ Ready in 452ms
+Creating turbopack project {
+  dir: 'C:\\Users\\jongt\\JT_Academy\\korea_stock_sell_signal',
+  testMode: true
+}
+
+ POST /api/admin/sync-krx-data 200 in 1217ms (next.js: 484ms, application-code: 733ms)
+ POST /api/admin/sync-krx-data 200 in 11.4s (next.js: 2ms, application-code: 11.4s)
+ GET /api/stocks/search?q=%EC%82%BC%EC%84%B1 200 in 692ms (next.js: 284ms, application-code: 407ms)
