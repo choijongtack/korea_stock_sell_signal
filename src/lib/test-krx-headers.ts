@@ -14,11 +14,9 @@ if (fs.existsSync(envPath)) {
 }
 
 const AUTH_KEY = process.env.KRX_OPENAPI_AUTH_KEY || '';
-const BASE_URLS = [
-  'https://openapi.krx.co.kr',
-  'https://data-dbg.krx.co.kr'
-];
-const API_ID = 'ksq_bydd_trd';
+const baseUrlFromEnv = process.env.KRX_OPENAPI_BASE_URL || '';
+const BASE_URLS = baseUrlFromEnv ? [baseUrlFromEnv] : [];
+const API_ID = process.env.KRX_OPENAPI_INDEX_API_ID_KOSDAQ || '';
 const DATE = '20260514'; // Past date to ensure data exists
 
 async function testHeader(baseUrl: string, headerName: string) {
@@ -43,6 +41,14 @@ async function testHeader(baseUrl: string, headerName: string) {
 async function run() {
   if (!AUTH_KEY) {
     console.error('No AUTH_KEY found in .env.local');
+    return;
+  }
+  if (!API_ID) {
+    console.error('No API_ID found in env (KRX_OPENAPI_INDEX_API_ID_KOSDAQ).');
+    return;
+  }
+  if (BASE_URLS.length === 0) {
+    console.error('No BASE_URL found in env (KRX_OPENAPI_BASE_URL).');
     return;
   }
 

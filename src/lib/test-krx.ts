@@ -19,8 +19,7 @@ import { syncMarketBreadthDaily } from './syncMarketBreadth';
 async function test() {
   console.log('Starting KRX API test...');
   
-  // Override for testing - using .env.local value (https://data-dbg.krx.co.kr)
-  // process.env.KRX_OPENAPI_BASE_URL = 'https://openapi.krx.co.kr';
+  // Override for testing via env when needed.
   
   console.log('KRX_OPENAPI_BASE_URL:', process.env.KRX_OPENAPI_BASE_URL);
   console.log('KRX_OPENAPI_AUTH_KEY:', process.env.KRX_OPENAPI_AUTH_KEY ? 'PRESENT' : 'MISSING');

@@ -1,180 +1,169 @@
-# Supabase 연동 검토 리포트
-
-**프로젝트**: korea-stock-sell-signal  
-**Supabase 프로젝트**: `cgrdeiizkstsrrhzcfoe` (리전: ap-northeast-2, 서울)  
-**상태**: `ACTIVE_HEALTHY` ✅  
-**Postgres 버전**: 17.6.1.121  
-**검토일**: 2026-05-15
+﻿# Supabase ?곕룞 寃??由ы룷??
+**?꾨줈?앺듃**: korea-stock-sell-signal  
+**Supabase ?꾨줈?앺듃**: `cgrdeiizkstsrrhzcfoe` (由ъ쟾: ap-northeast-2, ?쒖슱)  
+**?곹깭**: `ACTIVE_HEALTHY` ?? 
+**Postgres 踰꾩쟾**: 17.6.1.121  
+**寃?좎씪**: 2026-05-15
 
 ---
 
-## 1. 연결 설정 ✅ 정상
+## 1. ?곌껐 ?ㅼ젙 ???뺤긽
 
-| 항목 | .env.local 값 | Supabase 실제 값 | 일치 |
+| ??ぉ | .env.local 媛?| Supabase ?ㅼ젣 媛?| ?쇱튂 |
 |------|---------------|-------------------|------|
-| URL | `https://cgrdeiizkstsrrhzcfoe.supabase.co` | `https://cgrdeiizkstsrrhzcfoe.supabase.co` | ✅ |
-| Anon Key | `sb_publishable_JXXDuy7bHr-m_...` (Publishable 키) | 동일 | ✅ |
-| Service Role Key | `eyJhbG...` (JWT) | — (서버 전용, 노출 불가) | ✅ 설정됨 |
+| URL | `https://<redacted-project-ref>.supabase.co` | `https://<redacted-project-ref>.supabase.co` | ??|
+| Anon Key | `sb_publishable_JXXDuy7bHr-m_...` (Publishable ?? | ?숈씪 | ??|
+| Service Role Key | `eyJhbG...` (JWT) | ??(?쒕쾭 ?꾩슜, ?몄텧 遺덇?) | ???ㅼ젙??|
 
-- **클라이언트** ([supabaseClient.ts](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/supabaseClient.ts)): `NEXT_PUBLIC_SUPABASE_ANON_KEY`로 Publishable 키 사용 → 정상
-- **서버 Admin** ([supabaseAdmin.ts](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/supabaseAdmin.ts)): `import "server-only"` + Service Role Key → 서버 전용 보호 ✅
-
+- **?대씪?댁뼵??* ([supabaseClient.ts](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/supabaseClient.ts)): `NEXT_PUBLIC_SUPABASE_ANON_KEY`濡?Publishable ???ъ슜 ???뺤긽
+- **?쒕쾭 Admin** ([supabaseAdmin.ts](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/supabaseAdmin.ts)): `import "server-only"` + Service Role Key ???쒕쾭 ?꾩슜 蹂댄샇 ??
 > [!TIP]
-> Supabase에서 Legacy anon 키(`eyJhbG...`)도 활성 상태입니다. 새 Publishable 키(`sb_publishable_...`)를 이미 사용 중이므로, legacy 키가 불필요하면 비활성화를 권장합니다.
+> Supabase?먯꽌 Legacy anon ??`eyJhbG...`)???쒖꽦 ?곹깭?낅땲?? ??Publishable ??`sb_publishable_...`)瑜??대? ?ъ슜 以묒씠誘濡? legacy ?ㅺ? 遺덊븘?뷀븯硫?鍮꾪솢?깊솕瑜?沅뚯옣?⑸땲??
 
 ---
 
-## 2. 데이터베이스 스키마 vs 코드 매핑
+## 2. ?곗씠?곕쿋?댁뒪 ?ㅽ궎留?vs 肄붾뱶 留ㅽ븨
 
-### 2.1 테이블 현황
+### 2.1 ?뚯씠釉??꾪솴
 
-| 테이블 | 행 수 | RLS | 인덱스 |
+| ?뚯씠釉?| ????| RLS | ?몃뜳??|
 |--------|-------|-----|--------|
-| `market_liquidity_daily` | **122** | ✅ ON | PK + `trade_date` UNIQUE |
-| `market_index_daily` | **0** | ✅ ON | PK + `(trade_date, market)` UNIQUE |
-| `investor_flow_daily` | **0** | ✅ ON | PK + `(trade_date, market, investor_type)` UNIQUE |
-| `signal_events` | **0** | ✅ ON | PK만 |
+| `market_liquidity_daily` | **122** | ??ON | PK + `trade_date` UNIQUE |
+| `market_index_daily` | **0** | ??ON | PK + `(trade_date, market)` UNIQUE |
+| `investor_flow_daily` | **0** | ??ON | PK + `(trade_date, market, investor_type)` UNIQUE |
+| `signal_events` | **0** | ??ON | PK留?|
 
-### 2.2 코드-DB 스키마 불일치
-
+### 2.2 肄붾뱶-DB ?ㅽ궎留?遺덉씪移?
 > [!WARNING]
-> **심각도: 높음** — 코드와 DB 스키마 사이에 여러 불일치가 발견되었습니다.
+> **?ш컖?? ?믪쓬** ??肄붾뱶? DB ?ㅽ궎留??ъ씠???щ윭 遺덉씪移섍? 諛쒓껄?섏뿀?듬땲??
 
-#### ❌ `market_index_daily` — DB에 `open`, `high`, `low` 컬럼 없음
+#### ??`market_index_daily` ??DB??`open`, `high`, `low` 而щ읆 ?놁쓬
 
-코드 ([saveMarketData.ts:74-76](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/saveMarketData.ts#L74-L76))에서 `open`, `high`, `low` 필드를 upsert하지만, DB 테이블에는 해당 컬럼이 **존재하지 않습니다**.
+肄붾뱶 ([saveMarketData.ts:74-76](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/saveMarketData.ts#L74-L76))?먯꽌 `open`, `high`, `low` ?꾨뱶瑜?upsert?섏?留? DB ?뚯씠釉붿뿉???대떦 而щ읆??**議댁옱?섏? ?딆뒿?덈떎**.
 
 ```diff
- DB 컬럼: id, trade_date, market, close, change, change_rate, volume,
+ DB 而щ읆: id, trade_date, market, close, change, change_rate, volume,
           trading_value_million_krw, market_cap_million_krw, ma20, ma60, ma120, created_at
 
- 코드가 보내는 추가 필드:
-- open      ← DB에 없음
-- high      ← DB에 없음
-- low       ← DB에 없음
+ 肄붾뱶媛 蹂대궡??異붽? ?꾨뱶:
+- open      ??DB???놁쓬
+- high      ??DB???놁쓬
+- low       ??DB???놁쓬
 ```
 
-**영향**: Supabase는 정의되지 않은 컬럼을 무시하므로 에러는 나지 않지만, `open/high/low` 데이터가 **저장되지 않습니다**.
+**?곹뼢**: Supabase???뺤쓽?섏? ?딆? 而щ읆??臾댁떆?섎?濡??먮윭???섏? ?딆?留? `open/high/low` ?곗씠?곌? **??λ릺吏 ?딆뒿?덈떎**.
 
-#### ❌ `market_index_daily` — 코드에서 `market_cap_million_krw`, `ma20`, `ma60`, `ma120` 미사용
-
-DB에는 있지만 코드의 TypeScript 타입과 upsert 로직에서 빠져 있습니다.
+#### ??`market_index_daily` ??肄붾뱶?먯꽌 `market_cap_million_krw`, `ma20`, `ma60`, `ma120` 誘몄궗??
+DB?먮뒗 ?덉?留?肄붾뱶??TypeScript ??낃낵 upsert 濡쒖쭅?먯꽌 鍮좎졇 ?덉뒿?덈떎.
 
 ```diff
- DB에만 있는 컬럼:
+ DB?먮쭔 ?덈뒗 而щ읆:
 + market_cap_million_krw
 + ma20, ma60, ma120
 ```
 
-#### ❌ `investor_flow_daily` — DB 스키마와 코드 구조 완전 불일치
-
-| DB 컬럼 | 코드에서 보내는 필드 |
+#### ??`investor_flow_daily` ??DB ?ㅽ궎留덉? 肄붾뱶 援ъ“ ?꾩쟾 遺덉씪移?
+| DB 而щ읆 | 肄붾뱶?먯꽌 蹂대궡???꾨뱶 |
 |---------|---------------------|
-| `market` (text) | ❌ 없음 |
-| `investor_type` (text) | ❌ 없음 |
-| `sell_amount_million_krw` | ❌ 없음 |
-| `buy_amount_million_krw` | ❌ 없음 |
-| `net_buy_amount_million_krw` | ❌ 없음 |
-| ❌ 없음 | `foreign_net_buy` |
-| ❌ 없음 | `institution_net_buy` |
-| ❌ 없음 | `individual_net_buy` |
-| ❌ 없음 | `program_net_buy` |
+| `market` (text) | ???놁쓬 |
+| `investor_type` (text) | ???놁쓬 |
+| `sell_amount_million_krw` | ???놁쓬 |
+| `buy_amount_million_krw` | ???놁쓬 |
+| `net_buy_amount_million_krw` | ???놁쓬 |
+| ???놁쓬 | `foreign_net_buy` |
+| ???놁쓬 | `institution_net_buy` |
+| ???놁쓬 | `individual_net_buy` |
+| ???놁쓬 | `program_net_buy` |
 
-DB는 **투자자별 행 분리 구조** (market + investor_type 조합이 unique key)인데, 코드는 **단일 행에 투자자별 순매수를 컬럼으로 넣는 구조**입니다.
+DB??**?ъ옄?먮퀎 ??遺꾨━ 援ъ“** (market + investor_type 議고빀??unique key)?몃뜲, 肄붾뱶??**?⑥씪 ?됱뿉 ?ъ옄?먮퀎 ?쒕ℓ?섎? 而щ읆?쇰줈 ?ｋ뒗 援ъ“**?낅땲??
 
-**영향**: `investor_flow_daily`에 데이터를 upsert하면 `onConflict: "trade_date"` 충돌 → DB의 unique 키는 `(trade_date, market, investor_type)`이므로 **에러가 발생**합니다.
+**?곹뼢**: `investor_flow_daily`???곗씠?곕? upsert?섎㈃ `onConflict: "trade_date"` 異⑸룎 ??DB??unique ?ㅻ뒗 `(trade_date, market, investor_type)`?대?濡?**?먮윭媛 諛쒖깮**?⑸땲??
 
-#### ❌ `market_cma_daily` — DB에 테이블 자체가 없음
+#### ??`market_cma_daily` ??DB???뚯씠釉??먯껜媛 ?놁쓬
 
-코드 ([saveMarketData.ts:112-133](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/saveMarketData.ts#L112-L133))에서 `market_cma_daily` 테이블에 upsert를 시도하지만, DB에 해당 테이블이 **존재하지 않습니다**. API 라우트에서 `upsertCmaWithFallback` 함수로 fallback 처리는 하고 있지만, 결과적으로 실패합니다.
+肄붾뱶 ([saveMarketData.ts:112-133](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/saveMarketData.ts#L112-L133))?먯꽌 `market_cma_daily` ?뚯씠釉붿뿉 upsert瑜??쒕룄?섏?留? DB???대떦 ?뚯씠釉붿씠 **議댁옱?섏? ?딆뒿?덈떎**. API ?쇱슦?몄뿉??`upsertCmaWithFallback` ?⑥닔濡?fallback 泥섎━???섍퀬 ?덉?留? 寃곌낵?곸쑝濡??ㅽ뙣?⑸땲??
 
-#### ❌ `signal_events` — DB 스키마와 코드 타입 불일치
-
-| DB 컬럼 | 코드 TypeScript 타입 필드 |
+#### ??`signal_events` ??DB ?ㅽ궎留덉? 肄붾뱶 ???遺덉씪移?
+| DB 而щ읆 | 肄붾뱶 TypeScript ????꾨뱶 |
 |---------|--------------------------|
 | `signal_type` (text) | `signalType: "sell" \| "reduce" \| "hold"` |
-| `severity` (text) | ❌ 없음 |
-| `score_delta` (numeric) | ❌ 없음 |
-| `title` (text) | ❌ 없음 |
-| `description` (text) | ❌ 없음 |
-| ❌ 없음 | `ticker` |
-| ❌ 없음 | `triggerScore` |
-| ❌ 없음 | `triggerReason` |
+| `severity` (text) | ???놁쓬 |
+| `score_delta` (numeric) | ???놁쓬 |
+| `title` (text) | ???놁쓬 |
+| `description` (text) | ???놁쓬 |
+| ???놁쓬 | `ticker` |
+| ???놁쓬 | `triggerScore` |
+| ???놁쓬 | `triggerReason` |
 
 ---
 
-## 3. 보안 검토
-
+## 3. 蹂댁븞 寃??
 > [!CAUTION]
-> **RLS 정책이 전혀 설정되지 않았습니다!**
+> **RLS ?뺤콉???꾪? ?ㅼ젙?섏? ?딆븯?듬땲??**
 
-4개 테이블 모두 RLS가 **ON**으로 활성화되어 있지만, **정책(Policy)이 0개**입니다.
+4媛??뚯씠釉?紐⑤몢 RLS媛 **ON**?쇰줈 ?쒖꽦?붾릺???덉?留? **?뺤콉(Policy)??0媛?*?낅땲??
 
-| 테이블 | RLS 상태 | Policy 수 |
+| ?뚯씠釉?| RLS ?곹깭 | Policy ??|
 |--------|----------|-----------|
-| `market_liquidity_daily` | ON | ❌ **0** |
-| `market_index_daily` | ON | ❌ **0** |
-| `investor_flow_daily` | ON | ❌ **0** |
-| `signal_events` | ON | ❌ **0** |
+| `market_liquidity_daily` | ON | ??**0** |
+| `market_index_daily` | ON | ??**0** |
+| `investor_flow_daily` | ON | ??**0** |
+| `signal_events` | ON | ??**0** |
 
-**현재 영향**:
-- **anon/publishable 키로는 모든 테이블 접근이 차단**됩니다 (RLS ON + 정책 없음 = 모든 요청 거부)
-- [supabaseClient.ts](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/supabaseClient.ts)의 anon 클라이언트로는 데이터 읽기/쓰기 불가
-- [supabaseAdmin.ts](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/supabaseAdmin.ts)의 Service Role 클라이언트만 RLS를 우회하여 작동
-- **API 라우트** (`/api/upload-market-data`)에서 Service Role 사용 → 쓰기는 정상
-- **클라이언트 측 직접 읽기**를 시도하면 빈 결과가 반환됨
-
+**?꾩옱 ?곹뼢**:
+- **anon/publishable ?ㅻ줈??紐⑤뱺 ?뚯씠釉??묎렐??李⑤떒**?⑸땲??(RLS ON + ?뺤콉 ?놁쓬 = 紐⑤뱺 ?붿껌 嫄곕?)
+- [supabaseClient.ts](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/supabaseClient.ts)??anon ?대씪?댁뼵?몃줈???곗씠???쎄린/?곌린 遺덇?
+- [supabaseAdmin.ts](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/lib/supabaseAdmin.ts)??Service Role ?대씪?댁뼵?몃쭔 RLS瑜??고쉶?섏뿬 ?묐룞
+- **API ?쇱슦??* (`/api/upload-market-data`)?먯꽌 Service Role ?ъ슜 ???곌린???뺤긽
+- **?대씪?댁뼵??痢?吏곸젒 ?쎄린**瑜??쒕룄?섎㈃ 鍮?寃곌낵媛 諛섑솚??
 ---
 
-## 4. 대시보드 페이지 — Supabase 데이터 미사용
-
+## 4. ??쒕낫???섏씠吏 ??Supabase ?곗씠??誘몄궗??
 > [!IMPORTANT]
-> 메인 대시보드 ([page.tsx](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/app/page.tsx))는 **하드코딩된 mock 데이터**만 사용하고 있습니다.
+> 硫붿씤 ??쒕낫??([page.tsx](file:///c:/Users/jongt/JT_Academy/korea_stock_sell_signal/src/app/page.tsx))??**?섎뱶肄붾뵫??mock ?곗씠??*留??ъ슜?섍퀬 ?덉뒿?덈떎.
 
 ```typescript
 // page.tsx:74-78
 export default function HomePage() {
-  const liquidityData = createMockLiquidityData();  // ← Mock
-  const indexData = createMockIndexData();            // ← Mock
-  const flowData = createMockFlowData();              // ← Mock
+  const liquidityData = createMockLiquidityData();  // ??Mock
+  const indexData = createMockIndexData();            // ??Mock
+  const flowData = createMockFlowData();              // ??Mock
   const risk = calculateMarketRisk(liquidityData, indexData, flowData);
 ```
 
-Supabase에 122건의 유동성 데이터가 저장되어 있지만, 대시보드에서는 전혀 사용하지 않고 있습니다.
+Supabase??122嫄댁쓽 ?좊룞???곗씠?곌? ??λ릺???덉?留? ??쒕낫?쒖뿉?쒕뒗 ?꾪? ?ъ슜?섏? ?딄퀬 ?덉뒿?덈떎.
 
 ---
 
-## 5. 성능 검토 ✅
-
-- **퍼포먼스 어드바이저**: 경고 없음 ✅
-- **인덱스**: 모든 테이블에 적절한 UNIQUE 인덱스 존재 ✅
-
+## 5. ?깅뒫 寃????
+- **?쇳룷癒쇱뒪 ?대뱶諛붿씠?**: 寃쎄퀬 ?놁쓬 ??- **?몃뜳??*: 紐⑤뱺 ?뚯씠釉붿뿉 ?곸젅??UNIQUE ?몃뜳??議댁옱 ??
 ---
 
-## 6. 요약 및 권장 조치
+## 6. ?붿빟 諛?沅뚯옣 議곗튂
 
-### 🔴 즉시 수정 필요
+### ?뵶 利됱떆 ?섏젙 ?꾩슂
 
-| # | 항목 | 설명 |
+| # | ??ぉ | ?ㅻ챸 |
 |---|------|------|
-| 1 | **`investor_flow_daily` 구조 불일치** | DB 스키마 또는 코드 중 하나를 수정해야 함. DB를 코드에 맞추려면 테이블 재설계 필요 |
-| 2 | **RLS 정책 추가** | anon 키로 읽기가 필요하면 `SELECT` 정책 추가 필요. 쓰기는 API 라우트(Service Role)를 통해서만 허용하는 것이 적절 |
-| 3 | **`market_cma_daily` 테이블 생성** | 코드에서 참조하지만 DB에 없음 |
+| 1 | **`investor_flow_daily` 援ъ“ 遺덉씪移?* | DB ?ㅽ궎留??먮뒗 肄붾뱶 以??섎굹瑜??섏젙?댁빞 ?? DB瑜?肄붾뱶??留욎텛?ㅻ㈃ ?뚯씠釉??ъ꽕怨??꾩슂 |
+| 2 | **RLS ?뺤콉 異붽?** | anon ?ㅻ줈 ?쎄린媛 ?꾩슂?섎㈃ `SELECT` ?뺤콉 異붽? ?꾩슂. ?곌린??API ?쇱슦??Service Role)瑜??듯빐?쒕쭔 ?덉슜?섎뒗 寃껋씠 ?곸젅 |
+| 3 | **`market_cma_daily` ?뚯씠釉??앹꽦** | 肄붾뱶?먯꽌 李몄“?섏?留?DB???놁쓬 |
 
-### 🟡 개선 권장
+### ?윞 媛쒖꽑 沅뚯옣
 
-| # | 항목 | 설명 |
+| # | ??ぉ | ?ㅻ챸 |
 |---|------|------|
-| 4 | **`market_index_daily`에 `open`, `high`, `low` 컬럼 추가** | 코드에서 전송하지만 DB에 저장 안 됨 |
-| 5 | **대시보드에서 실제 Supabase 데이터 로드** | mock → Supabase fetch로 전환 |
-| 6 | **Legacy anon 키 비활성화 검토** | 새 Publishable 키 사용 중이므로 불필요 |
+| 4 | **`market_index_daily`??`open`, `high`, `low` 而щ읆 異붽?** | 肄붾뱶?먯꽌 ?꾩넚?섏?留?DB?????????|
+| 5 | **??쒕낫?쒖뿉???ㅼ젣 Supabase ?곗씠??濡쒕뱶** | mock ??Supabase fetch濡??꾪솚 |
+| 6 | **Legacy anon ??鍮꾪솢?깊솕 寃??* | ??Publishable ???ъ슜 以묒씠誘濡?遺덊븘??|
 
-### ✅ 정상 항목
+### ???뺤긽 ??ぉ
 
-| # | 항목 |
+| # | ??ぉ |
 |---|------|
-| Supabase URL/Key 연결 | ✅ |
-| 서버 Admin 클라이언트 보호 (server-only) | ✅ |
-| API 라우트 구조 (Service Role로 서버 쓰기) | ✅ |
-| `market_liquidity_daily` 정상 동작 (122건) | ✅ |
-| DB 인덱스 / 퍼포먼스 | ✅ |
+| Supabase URL/Key ?곌껐 | ??|
+| ?쒕쾭 Admin ?대씪?댁뼵??蹂댄샇 (server-only) | ??|
+| API ?쇱슦??援ъ“ (Service Role濡??쒕쾭 ?곌린) | ??|
+| `market_liquidity_daily` ?뺤긽 ?숈옉 (122嫄? | ??|
+| DB ?몃뜳??/ ?쇳룷癒쇱뒪 | ??|
+

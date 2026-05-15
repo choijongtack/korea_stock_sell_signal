@@ -15,8 +15,8 @@ const getAuthKey = () => process.env.KRX_OPENAPI_AUTH_KEY ?? "";
 const getAuthKeyKospi = () => process.env.KRX_OPENAPI_AUTH_KEY_KOSPI ?? "";
 const getAuthKeyKosdaq = () => process.env.KRX_OPENAPI_AUTH_KEY_KOSDAQ ?? "";
 
-const getIndexApiIdKospi = () => process.env.KRX_OPENAPI_INDEX_API_ID_KOSPI ?? "stk_bydd_trd";
-const getIndexApiIdKosdaq = () => process.env.KRX_OPENAPI_INDEX_API_ID_KOSDAQ ?? "ksq_bydd_trd";
+const getIndexApiIdKospi = () => process.env.KRX_OPENAPI_INDEX_API_ID_KOSPI ?? "";
+const getIndexApiIdKosdaq = () => process.env.KRX_OPENAPI_INDEX_API_ID_KOSDAQ ?? "";
 const getIndexApiIdKospi200 = () => process.env.KRX_OPENAPI_INDEX_API_ID_KOSPI200 ?? "";
 
 const getInvestorApiIdKospi = () => process.env.KRX_OPENAPI_INVESTOR_FLOW_API_ID_KOSPI ?? "";
