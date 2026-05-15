@@ -1,9 +1,15 @@
 import "server-only";
-import { getSupabaseAdmin } from "./supabaseAdmin";
+import { getSupabaseReadClient } from "./supabaseAdmin";
 import type { InvestorFlowDaily, MarketCmaDaily, MarketCreditBalanceDaily, MarketIndexDaily, MarketLiquidityDaily, MarketRiskScore, SignalEvent } from "@/types/market";
 
 export async function fetchMarketLiquidityDaily(): Promise<MarketLiquidityDaily[]> {
-  const supabase = getSupabaseAdmin();
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
   const { data, error } = await supabase.from("market_liquidity_daily").select("*").order("trade_date", { ascending: true });
 
   if (error) {
@@ -22,7 +28,13 @@ export async function fetchMarketLiquidityDaily(): Promise<MarketLiquidityDaily[
 }
 
 export async function fetchMarketIndexDaily(): Promise<MarketIndexDaily[]> {
-  const supabase = getSupabaseAdmin();
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
   const { data, error } = await supabase.from("market_index_daily").select("*").order("trade_date", { ascending: true });
 
   if (error) {
@@ -46,7 +58,13 @@ export async function fetchMarketIndexDaily(): Promise<MarketIndexDaily[]> {
 }
 
 export async function fetchInvestorFlowDaily(): Promise<InvestorFlowDaily[]> {
-  const supabase = getSupabaseAdmin();
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
 
   const wide = await supabase
     .from("investor_flow_daily")
@@ -70,7 +88,13 @@ export async function fetchInvestorFlowDaily(): Promise<InvestorFlowDaily[]> {
 }
 
 export async function fetchMarketCreditBalanceDaily(): Promise<MarketCreditBalanceDaily[]> {
-  const supabase = getSupabaseAdmin();
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
   const { data, error } = await supabase.from("market_credit_balance_daily").select("*").order("trade_date", { ascending: true });
 
   if (error) {
@@ -89,7 +113,13 @@ export async function fetchMarketCreditBalanceDaily(): Promise<MarketCreditBalan
 }
 
 export async function fetchMarketCmaDaily(): Promise<MarketCmaDaily[]> {
-  const supabase = getSupabaseAdmin();
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
   const { data, error } = await supabase.from("market_cma_daily").select("*").order("trade_date", { ascending: true });
 
   if (error) {
@@ -110,7 +140,13 @@ export async function fetchMarketCmaDaily(): Promise<MarketCmaDaily[]> {
 }
 
 export async function fetchLatestMarketRiskDaily(): Promise<(Pick<MarketRiskScore, "totalScore" | "riskLevel"> & { summary?: string | null }) | null> {
-  const supabase = getSupabaseAdmin();
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
   const { data, error } = await supabase
     .from("market_risk_daily")
     .select("total_score,risk_level,summary,trade_date")
@@ -133,7 +169,13 @@ export async function fetchLatestMarketRiskDaily(): Promise<(Pick<MarketRiskScor
 }
 
 export async function fetchLatestSignalEvents(): Promise<SignalEvent[]> {
-  const supabase = getSupabaseAdmin();
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
   const latestDateRes = await supabase
     .from("signal_events")
     .select("trade_date")
