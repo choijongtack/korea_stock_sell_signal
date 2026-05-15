@@ -168,7 +168,7 @@ export default function PortfolioPage() {
           <input className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm" placeholder="수량" value={form.quantity} onChange={(e) => setForm((s) => ({ ...s, quantity: e.target.value }))} />
         </div>
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-        <button type="button" onClick={onAdd} className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white">추가</button>
+        <button type="button" onClick={onAdd} className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white">분석</button>
       </section>
 
       <PortfolioRiskSummary results={results} />
