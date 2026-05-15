@@ -100,6 +100,13 @@ const categoryMeta: Record<CategoryKey, { label: string; yAxisId: "left" | "righ
   }
 };
 
+const formatYAxisValue = (value: number | string, category: CategoryKey): string => {
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(num)) return String(value);
+  if (category === "index") return `${Math.round(num).toLocaleString()} pt`;
+  return `${Math.round(num).toLocaleString()} 백만`;
+};
+
 export function LiquidityChart({ data }: LiquidityChartProps) {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -151,8 +158,21 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData as any[]} margin={{ top: 10, right: isMobile ? 8 : 24, left: isMobile ? 4 : 12, bottom: 0 }}>
               <XAxis dataKey="tradeDate" tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <YAxis yAxisId="left" tick={{ fontSize: isMobile ? 10 : 12 }} width={isMobile ? 44 : 56} />
-              {!isMobile ? <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} width={56} /> : null}
+              <YAxis
+                yAxisId="left"
+                tick={{ fontSize: isMobile ? 10 : 12 }}
+                width={isMobile ? 64 : 80}
+                tickFormatter={(v) => formatYAxisValue(v, activeCategory)}
+              />
+              {!isMobile ? (
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fontSize: 12 }}
+                  width={80}
+                  tickFormatter={(v) => formatYAxisValue(v, activeCategory)}
+                />
+              ) : null}
               <Tooltip />
               {activeMeta.lines.map((line) => (
                 <Line
