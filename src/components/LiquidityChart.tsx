@@ -115,6 +115,7 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
 
   const chartData = useMemo(() => data[activeCategory], [activeCategory, data]);
   const activeMeta = categoryMeta[activeCategory];
+  const effectiveYAxisId = isMobile && activeCategory === "index" ? "left" : activeMeta.yAxisId;
 
   return (
     <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -150,13 +151,13 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData as any[]} margin={{ top: 10, right: isMobile ? 8 : 24, left: isMobile ? 4 : 12, bottom: 0 }}>
               <XAxis dataKey="tradeDate" tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              {!isMobile ? <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} /> : null}
+              <YAxis yAxisId="left" tick={{ fontSize: isMobile ? 10 : 12 }} width={isMobile ? 44 : 56} />
+              {!isMobile ? <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} width={56} /> : null}
               <Tooltip />
               {activeMeta.lines.map((line) => (
                 <Line
                   key={line.key}
-                  yAxisId={activeMeta.yAxisId}
+                  yAxisId={effectiveYAxisId}
                   type="monotone"
                   dataKey={line.key}
                   stroke={line.color}
