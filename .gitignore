@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# next build output
+.next/
+out/
+
+# env
+.env*
+!.env.example
+
+# local backups
+backups/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
