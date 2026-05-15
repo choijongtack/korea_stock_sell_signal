@@ -1,16 +1,12 @@
-﻿type HoldingAction = "보유" | "일부 익절" | "비중 축소" | "매도 검토";
+﻿import type { StockRiskResult } from "@/types/portfolioRisk";
 
 export interface EvaluatedHolding {
   id: string;
-  name: string;
-  code: string;
+  stock: StockRiskResult;
   dropFromPeakPct: number;
   belowMa20: boolean;
   belowMa60: boolean;
   usingCredit: boolean;
-  returnPct: number;
-  riskScore: number;
-  action: HoldingAction;
 }
 
 interface HoldingsTableProps {
@@ -40,18 +36,18 @@ export function HoldingsTable({ items, onDelete }: HoldingsTableProps) {
           {items.map((item) => (
             <tr key={item.id} className="border-b border-slate-100">
               <td className="px-2 py-3 font-medium">
-                {item.name} ({item.code})
+                {item.stock.stock_name} ({item.stock.stock_code})
               </td>
-              <td className="px-2 py-3">{item.returnPct.toFixed(2)}%</td>
+              <td className="px-2 py-3">{item.stock.profit_rate.toFixed(2)}%</td>
               <td className="px-2 py-3">{item.dropFromPeakPct.toFixed(2)}%</td>
               <td className="px-2 py-3">
                 {item.belowMa20 ? "20일선 " : ""}
                 {item.belowMa60 ? "60일선" : ""}
               </td>
               <td className="px-2 py-3">{item.usingCredit ? "사용" : "미사용"}</td>
-              <td className="px-2 py-3">{item.riskScore}</td>
+              <td className="px-2 py-3">{item.stock.risk_score}</td>
               <td className="px-2 py-3">
-                <span className="rounded-full bg-slate-900 px-2 py-1 text-xs font-semibold text-white">{item.action}</span>
+                <span className="rounded-full bg-slate-900 px-2 py-1 text-xs font-semibold text-white">{item.stock.recommendation}</span>
               </td>
               <td className="px-2 py-3">
                 <button type="button" onClick={() => onDelete(item.id)} className="text-xs text-red-600">
