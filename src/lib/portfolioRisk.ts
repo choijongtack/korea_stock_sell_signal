@@ -1,0 +1,134 @@
+import { HoldingStock, StockRiskResult, StockRiskSignal, RiskLevel } from "@/types/portfolioRisk";
+
+export type MarketRiskInput = {
+  market: "KOSPI" | "KOSDAQ";
+  market_risk_score: number;
+  market_risk_level: RiskLevel;
+};
+
+function getRiskLevel(score: number): RiskLevel {
+  if (score >= 70) return "danger";
+  if (score >= 40) return "caution";
+  return "safe";
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+export function diagnoseHoldingStockRisk(stock: HoldingStock, marketRisk?: MarketRiskInput): StockRiskResult {
+  const signals: StockRiskSignal[] = [];
+
+  const valuationAmount = stock.current_price * stock.quantity;
+  const buyAmount = stock.buy_price * stock.quantity;
+
+  const profitRate = stock.buy_price > 0 ? ((stock.current_price - stock.buy_price) / stock.buy_price) * 100 : 0;
+  const lossAmount = valuationAmount - buyAmount;
+
+  let riskScore = 0;
+
+  if (profitRate <= -20) {
+    riskScore += 35;
+    signals.push({
+      signal_type: "loss_over_20",
+      severity: "danger",
+      score_delta: 35,
+      title: "손실률 -20% 초과",
+      description: `${stock.stock_name}의 손실률이 ${round2(profitRate)}%입니다. 손실 관리가 필요한 구간입니다.`
+    });
+  } else if (profitRate <= -10) {
+    riskScore += 22;
+    signals.push({
+      signal_type: "loss_over_10",
+      severity: "caution",
+      score_delta: 22,
+      title: "손실률 -10% 초과",
+      description: `${stock.stock_name}의 손실률이 ${round2(profitRate)}%입니다. 추가 하락 시 비중 축소 검토가 필요합니다.`
+    });
+  } else if (profitRate <= -5) {
+    riskScore += 10;
+    signals.push({
+      signal_type: "loss_over_5",
+      severity: "caution",
+      score_delta: 10,
+      title: "손실률 -5% 초과",
+      description: `${stock.stock_name}이 약손실 구간에 진입했습니다.`
+    });
+  }
+
+  if (stock.market === "KOSDAQ") {
+    riskScore += 7;
+    signals.push({
+      signal_type: "kosdaq_volatility_weight",
+      severity: "caution",
+      score_delta: 7,
+      title: "KOSDAQ 변동성 가중",
+      description: "KOSDAQ 종목은 시장 하락 시 변동성이 커질 수 있어 위험 점수에 가중치를 반영했습니다."
+    });
+  }
+
+  if (marketRisk) {
+    if (marketRisk.market_risk_level === "danger") {
+      riskScore += 25;
+      signals.push({
+        signal_type: "market_danger",
+        severity: "danger",
+        score_delta: 25,
+        title: `${stock.market} 시장 위험`,
+        description: "현재 해당 시장의 위험 신호가 danger 상태입니다. 개별 종목 리스크도 함께 상승합니다."
+      });
+    } else if (marketRisk.market_risk_level === "caution") {
+      riskScore += 12;
+      signals.push({
+        signal_type: "market_caution",
+        severity: "caution",
+        score_delta: 12,
+        title: `${stock.market} 시장 주의`,
+        description: "현재 해당 시장에 주의 신호가 발생했습니다. 보유 종목의 비중 점검이 필요합니다."
+      });
+    }
+  }
+
+  riskScore = Math.min(riskScore, 100);
+  const riskLevel = getRiskLevel(riskScore);
+
+  const recommendation = createRecommendation({
+    stockName: stock.stock_name,
+    profitRate,
+    riskScore,
+    riskLevel
+  });
+
+  return {
+    stock_code: stock.stock_code,
+    stock_name: stock.stock_name,
+    market: stock.market,
+    profit_rate: round2(profitRate),
+    loss_amount: Math.round(lossAmount),
+    valuation_amount: Math.round(valuationAmount),
+    risk_score: riskScore,
+    risk_level: riskLevel,
+    signals,
+    recommendation
+  };
+}
+
+function createRecommendation(params: { stockName: string; profitRate: number; riskScore: number; riskLevel: RiskLevel }): string {
+  const { stockName, profitRate, riskLevel } = params;
+
+  if (riskLevel === "danger") {
+    if (profitRate < 0) {
+      return `${stockName}은 현재 손실 상태에서 위험 신호가 강하게 발생했습니다. 추가 매수보다는 비중 축소 또는 손절 기준 재점검이 우선입니다.`;
+    }
+    return `${stockName}은 수익 상태이지만 시장 위험이 높습니다. 수익 보호를 위해 일부 익절 또는 추적 손절 기준을 설정하는 것이 좋습니다.`;
+  }
+
+  if (riskLevel === "caution") {
+    if (profitRate < 0) {
+      return `${stockName}은 주의 구간입니다. 바로 매도보다는 시장 신호와 종목 추세를 함께 확인하면서 추가 하락 시 축소 기준을 준비하는 것이 좋습니다.`;
+    }
+    return `${stockName}은 아직 심각한 위험 구간은 아니지만, 시장 변동성 확대에 대비해 보유 비중을 점검하는 것이 좋습니다.`;
+  }
+
+  return `${stockName}은 현재 위험 점수가 낮은 편입니다. 다만 시장 전체 위험 신호가 강화되는 경우 다시 점검해야 합니다.`;
+}

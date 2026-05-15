@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { HoldingsTable } from "@/components/HoldingsTable";
-import type { HoldingStock, MarketType, RiskLevel, StockRiskResult, StockRiskSignal } from "@/types/portfolioRisk";
+import { diagnoseHoldingStockRisk, type MarketRiskInput } from "@/lib/portfolioRisk";
+import type { HoldingStock, MarketType, RiskLevel } from "@/types/portfolioRisk";
 
 type HoldingInput = {
   stock_name: string;
@@ -42,106 +43,35 @@ const defaultForm: HoldingInput = {
   belowMa60: false
 };
 
-function calculateProfitRate(buyPrice: number, currentPrice: number): number {
-  if (buyPrice <= 0) return 0;
-  return ((currentPrice - buyPrice) / buyPrice) * 100;
-}
-
-function scoreToRiskLevel(score: number): RiskLevel {
-  if (score >= 75) return "danger";
-  if (score >= 40) return "caution";
-  return "safe";
-}
-
-function scoreToRecommendation(score: number): string {
-  if (score >= 75) return "매도 검토";
-  if (score >= 55) return "비중 축소";
-  if (score >= 35) return "일부 익절";
-  return "보유";
-}
-
-function buildSignals(item: LocalHolding, profitRate: number): StockRiskSignal[] {
-  const signals: StockRiskSignal[] = [];
-
-  if (item.dropFromPeakPct >= 10) {
-    signals.push({ signal_type: "drawdown", severity: "danger", score_delta: 20, title: "고점 대비 하락 확대", description: "고점 대비 10% 이상 하락했습니다." });
-  } else if (item.dropFromPeakPct >= 5) {
-    signals.push({ signal_type: "drawdown", severity: "caution", score_delta: 10, title: "고점 대비 하락", description: "고점 대비 5% 이상 하락했습니다." });
-  }
-
-  if (item.belowMa60) {
-    signals.push({ signal_type: "ma_break", severity: "danger", score_delta: 25, title: "60일선 이탈", description: "중기 추세가 약화되었습니다." });
-  } else if (item.belowMa20) {
-    signals.push({ signal_type: "ma_break", severity: "caution", score_delta: 15, title: "20일선 이탈", description: "단기 추세가 약화되었습니다." });
-  }
-
-  if (profitRate < -10) {
-    signals.push({ signal_type: "loss", severity: "danger", score_delta: 20, title: "손실 구간 확대", description: "손실률이 -10% 미만입니다." });
-  } else if (profitRate < -5) {
-    signals.push({ signal_type: "loss", severity: "caution", score_delta: 12, title: "손실 구간", description: "손실률이 -5% 미만입니다." });
-  }
-
-  if (item.usingCredit) {
-    signals.push({ signal_type: "credit", severity: "danger", score_delta: 20, title: "신용 사용", description: "레버리지 사용으로 변동성 리스크가 커질 수 있습니다." });
-  }
-
-  return signals;
-}
-
-function evaluateHolding(item: LocalHolding): StockRiskResult {
-  let riskScore = 0;
-  const profitRate = calculateProfitRate(item.buy_price, item.current_price);
-
-  if (item.dropFromPeakPct >= 10) riskScore += 20;
-  else if (item.dropFromPeakPct >= 5) riskScore += 10;
-
-  if (item.belowMa20) riskScore += 15;
-  if (item.belowMa60) riskScore += 25;
-
-  if (profitRate < -10) riskScore += 20;
-  else if (profitRate < -5) riskScore += 12;
-  else if (profitRate < 0) riskScore += 6;
-
-  if (item.holdingPeriodDays <= 20) riskScore += 10;
-  else if (item.holdingPeriodDays <= 60) riskScore += 5;
-
-  if (item.usingCredit) riskScore += 20;
-
-  const boundedScore = Math.min(100, riskScore);
-  const valuationAmount = item.current_price * item.quantity;
-  const buyAmount = item.buy_price * item.quantity;
-  const lossAmount = Math.max(0, buyAmount - valuationAmount);
-
-  return {
-    stock_code: item.stock_code,
-    stock_name: item.stock_name,
-    market: item.market,
-    profit_rate: profitRate,
-    loss_amount: lossAmount,
-    valuation_amount: valuationAmount,
-    risk_score: boundedScore,
-    risk_level: scoreToRiskLevel(boundedScore),
-    signals: buildSignals(item, profitRate),
-    recommendation: scoreToRecommendation(boundedScore)
-  };
-}
-
 export default function HoldingsPage() {
   const [form, setForm] = useState<HoldingInput>(defaultForm);
   const [items, setItems] = useState<LocalHolding[]>([]);
   const [error, setError] = useState("");
+  const [kospiMarketRiskLevel, setKospiMarketRiskLevel] = useState<RiskLevel>("safe");
+  const [kosdaqMarketRiskLevel, setKosdaqMarketRiskLevel] = useState<RiskLevel>("safe");
+
+  const riskLevelToScore = (level: RiskLevel): number => {
+    if (level === "danger") return 80;
+    if (level === "caution") return 50;
+    return 20;
+  };
+
+  const getMarketRiskInput = (market: MarketType): MarketRiskInput => {
+    const level = market === "KOSPI" ? kospiMarketRiskLevel : kosdaqMarketRiskLevel;
+    return { market, market_risk_level: level, market_risk_score: riskLevelToScore(level) };
+  };
 
   const evaluated = useMemo(
     () =>
       items.map((item) => ({
         id: item.id,
-        stock: evaluateHolding(item),
+        stock: diagnoseHoldingStockRisk(item, getMarketRiskInput(item.market)),
         dropFromPeakPct: item.dropFromPeakPct,
         belowMa20: item.belowMa20,
         belowMa60: item.belowMa60,
         usingCredit: item.usingCredit
       })),
-    [items]
+    [items, kospiMarketRiskLevel, kosdaqMarketRiskLevel]
   );
 
   const handleAdd = () => {
@@ -187,6 +117,28 @@ export default function HoldingsPage() {
 
   return (
     <AppLayout title="보유 종목 위험 진단" description="보유/일부 익절/비중 축소/매도 검토 신호를 종목별로 확인합니다.">
+      <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
+        <h2 className="text-lg font-semibold">시장 위험도 설정 (MVP)</h2>
+        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <label className="text-sm">
+            <span className="mb-1 block text-slate-700">KOSPI 시장 위험도</span>
+            <select className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" value={kospiMarketRiskLevel} onChange={(e) => setKospiMarketRiskLevel(e.target.value as RiskLevel)}>
+              <option value="safe">safe</option>
+              <option value="caution">caution</option>
+              <option value="danger">danger</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-slate-700">KOSDAQ 시장 위험도</span>
+            <select className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" value={kosdaqMarketRiskLevel} onChange={(e) => setKosdaqMarketRiskLevel(e.target.value as RiskLevel)}>
+              <option value="safe">safe</option>
+              <option value="caution">caution</option>
+              <option value="danger">danger</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
       <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
         <h2 className="text-lg font-semibold">종목 입력</h2>
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
