@@ -1,5 +1,6 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { upsertStocksFromKrx } from "@/lib/stocks/upsertStocksFromKrx";
 
 type Market = "KOSPI" | "KOSDAQ" | "KOSPI200";
 
@@ -21,6 +22,8 @@ const getIndexApiIdKospi200 = () => process.env.KRX_OPENAPI_INDEX_API_ID_KOSPI20
 
 const getInvestorApiIdKospi = () => process.env.KRX_OPENAPI_INVESTOR_FLOW_API_ID_KOSPI ?? "";
 const getInvestorApiIdKosdaq = () => process.env.KRX_OPENAPI_INVESTOR_FLOW_API_ID_KOSDAQ ?? "";
+const getStocksApiIdKospi = () => process.env.KRX_OPENAPI_STOCKS_API_ID_KOSPI ?? "";
+const getStocksApiIdKosdaq = () => process.env.KRX_OPENAPI_STOCKS_API_ID_KOSDAQ ?? "";
 
 const toYmd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 const toIso = (yyyymmdd: string) => `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
@@ -82,6 +85,10 @@ function apiIdForIndex(market: Market): string {
 
 function apiIdForInvestor(market: Exclude<Market, "KOSPI200">): string {
   return market === "KOSPI" ? getInvestorApiIdKospi() : getInvestorApiIdKosdaq();
+}
+
+function apiIdForStocks(market: Exclude<Market, "KOSPI200">): string {
+  return market === "KOSPI" ? getStocksApiIdKospi() : getStocksApiIdKosdaq();
 }
 
 async function postRows(apiId: string, market: Market, basDd: string): Promise<Record<string, unknown>[]> {
@@ -199,4 +206,55 @@ export async function syncKrxInvestorFlowDaily(lastDays = 180): Promise<SyncSumm
   }
 
   return { inserted: payload.length, datesTried, datesSucceeded, warnings };
+}
+
+export async function syncKrxStocksDaily(lastDays = 5): Promise<SyncSummary> {
+  const warnings: string[] = [];
+  let inserted = 0;
+  let datesTried = 0;
+  let datesSucceeded = 0;
+
+  for (let i = 0; i < lastDays; i += 1) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const ymd = toYmd(d);
+    datesTried += 1;
+
+    const rowsForDay: Array<Record<string, unknown>> = [];
+    let dayOk = false;
+
+    for (const market of ["KOSPI", "KOSDAQ"] as const) {
+      const apiId = apiIdForStocks(market);
+      if (!apiId) {
+        warnings.push(`[${ymd}] ${market} stocks api id missing.`);
+        continue;
+      }
+      const rows = await postRows(apiId, market, ymd);
+      if (rows.length === 0) {
+        warnings.push(`[${ymd}] ${market} stocks rows not found.`);
+        continue;
+      }
+
+      rowsForDay.push(...rows);
+      dayOk = true;
+    }
+
+    if (rowsForDay.length > 0) {
+      const result = await upsertStocksFromKrx(
+        rowsForDay.map((row) => ({
+          BAS_DD: String(row.BAS_DD ?? ymd),
+          MKT_NM: String(row.MKT_NM ?? ""),
+          ISU_CD: String(row.ISU_CD ?? row.ISU_SRT_CD ?? ""),
+          ISU_NM: String(row.ISU_NM ?? row.ISU_ABBRV ?? ""),
+          TDD_CLSPRC: row.TDD_CLSPRC == null ? undefined : String(row.TDD_CLSPRC),
+          ACC_TRDVOL: row.ACC_TRDVOL == null ? undefined : String(row.ACC_TRDVOL)
+        }))
+      );
+      inserted += result.count;
+    }
+
+    if (dayOk) datesSucceeded += 1;
+  }
+
+  return { inserted, datesTried, datesSucceeded, warnings };
 }

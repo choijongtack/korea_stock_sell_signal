@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { syncKrxIndexDaily, syncKrxInvestorFlowDaily } from "@/lib/syncKrxOpenApi";
+import { syncKrxIndexDaily, syncKrxInvestorFlowDaily, syncKrxStocksDaily } from "@/lib/syncKrxOpenApi";
 
-type SyncType = "krx_index" | "krx_investor_flow";
+type SyncType = "krx_index" | "krx_investor_flow" | "krx_stocks";
 
 export async function POST(req: Request) {
   try {
@@ -19,10 +19,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
+    if (syncType === "krx_stocks") {
+      const result = await syncKrxStocksDaily(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+
     return NextResponse.json({ ok: false, error: `Unsupported syncType: ${syncType}` }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
-

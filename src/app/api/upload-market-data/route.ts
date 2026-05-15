@@ -220,13 +220,14 @@ export async function POST(req: Request) {
     }
 
     if (body.dataType === "krx_market_breadth") {
-      const payload = toMarketBreadth(body.rows);
-      if (!payload.every((row) => hasKeys(row, ["trade_date", "market", "created_at"]))) {
-        return NextResponse.json({ success: false, message: "Validation failed for market_breadth_daily." }, { status: 400 });
-      }
-      const { error } = await supabaseAdmin.from("market_breadth_daily").upsert(payload, { onConflict: "trade_date,market" });
-      if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
-      return NextResponse.json({ success: true, count: payload.length });
+      return NextResponse.json(
+        {
+          success: false,
+          paused: true,
+          message: "KRX market breadth upload is temporarily paused."
+        },
+        { status: 503 }
+      );
     }
 
     const payload = toMarketCma(body.rows);

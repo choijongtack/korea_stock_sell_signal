@@ -28,6 +28,9 @@ export function AppLayout({ title, description, children }: AppLayoutProps) {
             <Link className="whitespace-nowrap rounded-md bg-slate-100 px-3 py-1.5" href="/holdings">
               Holdings
             </Link>
+            <Link className="whitespace-nowrap rounded-md bg-slate-100 px-3 py-1.5" href="/portfolio">
+              Portfolio
+            </Link>
             <Link className="whitespace-nowrap rounded-md bg-slate-100 px-3 py-1.5" href="/backtest">
               Backtest
             </Link>
