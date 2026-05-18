@@ -124,24 +124,31 @@ export default async function HomePage({
 
   return (
     <AppLayout title="한국 증시 매도 위험 대시보드" description={description}>
-      <div className="mb-4 flex items-center gap-2">
-        <span className="text-sm text-slate-600">표시 구간</span>
-        <Link href="/" className={`rounded-md px-3 py-1.5 text-sm ${range === "all" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}>
-          전체
-        </Link>
-        <Link
-          href="/?range=last5"
-          className={`rounded-md px-3 py-1.5 text-sm ${range === "last5" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
-        >
-          최근 5건
-        </Link>
-      </div>
-      <div className="mb-4">
+      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-slate-700">표시 구간</span>
+          <div className="flex rounded-lg bg-slate-100 p-1">
+            <Link
+              href="/"
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold ${
+                range === "all" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950"
+              }`}
+            >
+              전체
+            </Link>
+            <Link
+              href="/?range=last5"
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold ${range === "last5" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950"}`}
+            >
+              최근 5건
+            </Link>
+          </div>
+        </div>
         <RunRiskButton />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <RiskSummaryCard totalScore={cardRisk.totalScore} riskLevel={cardRisk.riskLevel} summary={cardRisk.summary ?? null} />
           <LiquidityChart
             data={{

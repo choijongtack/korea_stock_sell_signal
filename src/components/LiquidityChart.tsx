@@ -1,7 +1,8 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
+import { AreaChart } from "lucide-react";
 
 type CategoryKey = "liquidity" | "credit" | "cma" | "index" | "flow";
 
@@ -111,6 +112,8 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("liquidity");
+  const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
+  const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -120,32 +123,61 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  useEffect(() => {
+    if (!mounted || !chartRef.current) return;
+
+    const updateChartSize = () => {
+      const rect = chartRef.current?.getBoundingClientRect();
+      setChartSize({
+        width: rect && rect.width > 0 ? Math.floor(rect.width) : 0,
+        height: rect && rect.height > 0 ? Math.floor(rect.height) : 0
+      });
+    };
+
+    updateChartSize();
+    const observer = new ResizeObserver(updateChartSize);
+    observer.observe(chartRef.current);
+
+    return () => observer.disconnect();
+  }, [mounted]);
+
   const chartData = useMemo(() => data[activeCategory], [activeCategory, data]);
   const activeMeta = categoryMeta[activeCategory];
   const effectiveYAxisId = isMobile && activeCategory === "index" ? "left" : activeMeta.yAxisId;
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-      <h2 className="text-lg font-semibold text-slate-900">시장 핵심 지표 추이</h2>
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-teal-100">
+            <AreaChart className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">시장 핵심 지표 추이</h2>
+            <p className="text-xs text-slate-500">{activeMeta.label} 기준 차트</p>
+          </div>
+        </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {(Object.keys(categoryMeta) as CategoryKey[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setActiveCategory(key)}
-            className={`rounded-md px-3 py-1.5 text-xs ${activeCategory === key ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
-          >
-            {categoryMeta[key].label}
-          </button>
-        ))}
+        <div className="flex flex-wrap gap-1.5">
+          {(Object.keys(categoryMeta) as CategoryKey[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveCategory(key)}
+              className={`h-8 rounded-lg px-3 text-xs font-semibold transition ${
+                activeCategory === key ? "bg-slate-950 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-950"
+              }`}
+            >
+              {categoryMeta[key].label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
-        <p className="mb-2 font-semibold">서브 지표 인덱스</p>
-        <div className="flex flex-wrap gap-2">
+      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+        <div className="flex flex-wrap gap-1.5">
           {activeMeta.lines.map((line) => (
-            <span key={line.key} className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 ring-1 ring-slate-200">
+            <span key={line.key} className="inline-flex h-7 items-center gap-1.5 rounded-full bg-white px-2.5 font-medium ring-1 ring-slate-200">
               <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />
               {line.label}
             </span>
@@ -153,10 +185,14 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
         </div>
       </div>
 
-      <div className="mt-4 h-64 w-full sm:h-72 md:h-80">
-        {mounted ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData as any[]} margin={{ top: 10, right: isMobile ? 8 : 24, left: isMobile ? 4 : 12, bottom: 0 }}>
+      <div ref={chartRef} className="mt-4 h-72 min-w-0 sm:h-80 md:h-96">
+        {mounted && chartSize.width > 0 && chartSize.height > 0 ? (
+            <LineChart
+              data={chartData as any[]}
+              width={chartSize.width}
+              height={chartSize.height}
+              margin={{ top: 10, right: isMobile ? 8 : 24, left: isMobile ? 4 : 12, bottom: 0 }}
+            >
               <XAxis dataKey="tradeDate" tick={{ fontSize: isMobile ? 10 : 12 }} />
               <YAxis
                 yAxisId="left"
@@ -173,7 +209,14 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
                   tickFormatter={(v) => formatYAxisValue(v, activeCategory)}
                 />
               ) : null}
-              <Tooltip />
+              <Tooltip
+                contentStyle={{
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  boxShadow: "0 10px 25px rgb(15 23 42 / 0.08)",
+                  fontSize: 12
+                }}
+              />
               {activeMeta.lines.map((line) => (
                 <Line
                   key={line.key}
@@ -187,7 +230,6 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
                 />
               ))}
             </LineChart>
-          </ResponsiveContainer>
         ) : (
           <div className="h-full w-full animate-pulse rounded-lg bg-slate-100" />
         )}
