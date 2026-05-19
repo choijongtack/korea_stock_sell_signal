@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
+import { Line, LineChart, Tooltip, XAxis, YAxis, Brush } from "recharts";
 import { AreaChart } from "lucide-react";
 
 type CategoryKey = "liquidity" | "credit" | "cma" | "index" | "flow";
@@ -229,6 +229,15 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
                   name={line.label}
                 />
               ))}
+              <Brush
+                dataKey="tradeDate"
+                height={30}
+                stroke="#cbd5e1"
+                fill="#f8fafc"
+                tickFormatter={() => ""}
+                startIndex={Math.max(0, chartData.length - 120)}
+                endIndex={Math.max(0, chartData.length - 1)}
+              />
             </LineChart>
         ) : (
           <div className="h-full w-full animate-pulse rounded-lg bg-slate-100" />

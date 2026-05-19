@@ -29,8 +29,6 @@ const getIndexApiIdKospi = () => process.env.KRX_OPENAPI_INDEX_API_ID_KOSPI ?? "
 const getIndexApiIdKosdaq = () => process.env.KRX_OPENAPI_INDEX_API_ID_KOSDAQ ?? "";
 const getIndexApiIdKospi200 = () => process.env.KRX_OPENAPI_INDEX_API_ID_KOSPI200 ?? "";
 
-const getInvestorApiIdKospi = () => process.env.KRX_OPENAPI_INVESTOR_FLOW_API_ID_KOSPI ?? "";
-const getInvestorApiIdKosdaq = () => process.env.KRX_OPENAPI_INVESTOR_FLOW_API_ID_KOSDAQ ?? "";
 const getStocksApiIdKospi = () => process.env.KRX_OPENAPI_STOCKS_API_ID_KOSPI ?? "";
 const getStocksApiIdKosdaq = () => process.env.KRX_OPENAPI_STOCKS_API_ID_KOSDAQ ?? "";
 
@@ -92,9 +90,6 @@ function apiIdForIndex(market: Market): string {
   return getIndexApiIdKospi200() || getIndexApiIdKospi();
 }
 
-function apiIdForInvestor(market: Exclude<Market, "KOSPI200">): string {
-  return market === "KOSPI" ? getInvestorApiIdKospi() : getInvestorApiIdKosdaq();
-}
 
 function apiIdForStocks(market: Exclude<Market, "KOSPI200">): string {
   return market === "KOSPI" ? getStocksApiIdKospi() : getStocksApiIdKosdaq();
@@ -197,53 +192,6 @@ export async function syncKrxIndexDaily(lastDays = 180): Promise<SyncSummary> {
   return { inserted: payload.length, datesTried, datesSucceeded, warnings };
 }
 
-export async function syncKrxInvestorFlowDaily(lastDays = 180): Promise<SyncSummary> {
-  const supabase = getSupabaseAdmin();
-  const warnings: string[] = [];
-  const payload: Array<Record<string, unknown>> = [];
-  let datesTried = 0;
-  let datesSucceeded = 0;
-
-  for (let i = 0; i < lastDays; i += 1) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const ymd = toYmd(d);
-    datesTried += 1;
-    let dayOk = false;
-
-    for (const market of ["KOSPI", "KOSDAQ"] as const) {
-      const apiId = apiIdForInvestor(market);
-      if (!apiId) {
-        warnings.push(`[${ymd}] ${market} investor flow api id missing.`);
-        continue;
-      }
-      const rows = await postRows(apiId, market, ymd);
-      if (rows.length === 0) {
-        warnings.push(`[${ymd}] ${market} investor flow rows not found.`);
-        continue;
-      }
-      const row = rows[0];
-      payload.push({
-        trade_date: toIso(ymd),
-        market,
-        foreign_net_buy: num(row.FRGN_NET_BUY ?? row.FRGN_NTBY_TRDVOL ?? row.FRGN_NTBY_AMT),
-        institution_net_buy: num(row.INST_NET_BUY ?? row.INST_NTBY_TRDVOL ?? row.INST_NTBY_AMT),
-        individual_net_buy: num(row.INDI_NET_BUY ?? row.INDV_NTBY_TRDVOL ?? row.INDV_NTBY_AMT),
-        program_net_buy: num(row.PROG_NET_BUY ?? row.PROG_NTBY_AMT),
-        created_at: new Date().toISOString()
-      });
-      dayOk = true;
-    }
-    if (dayOk) datesSucceeded += 1;
-  }
-
-  if (payload.length > 0) {
-    const { error } = await supabase.from("investor_flow_daily").upsert(payload, { onConflict: "trade_date,market" });
-    if (error) throw new Error(`investor_flow_daily upsert failed: ${error.message}`);
-  }
-
-  return { inserted: payload.length, datesTried, datesSucceeded, warnings };
-}
 
 export async function syncKrxStocksDaily(lastDays = 5): Promise<SyncSummary> {
   const warnings: string[] = [];

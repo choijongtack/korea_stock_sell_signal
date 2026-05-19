@@ -14,7 +14,7 @@ type UploadDataType =
   | "freesis_credit_balance"
   | "freesis_cma"
   | "krx_index"
-  | "krx_investor_flow"
+  | "investor_flow"
   | "krx_market_breadth"
   | "krx_market_cap";
 type ParsedRow = Record<string, string | number | boolean | null>;
@@ -24,7 +24,7 @@ const DATA_TYPE_OPTIONS: UploadDataType[] = [
   "freesis_credit_balance",
   "freesis_cma",
   "krx_index",
-  "krx_investor_flow",
+  "investor_flow",
   "krx_market_breadth",
   "krx_market_cap"
 ];
@@ -638,7 +638,7 @@ export function DataUpload() {
           />
         </label>
       </div>
-      {selectedType === "krx_investor_flow" && (
+      {selectedType === "investor_flow" && (
         <div className="mt-3">
           <label className="text-sm">
             <span className="mb-1 block font-medium text-slate-700">Investor Flow Market</span>
@@ -694,7 +694,7 @@ export function DataUpload() {
           </button>
         </div>
       )}
-      {selectedType === "krx_investor_flow" && (
+      {selectedType === "investor_flow" && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
             type="button"

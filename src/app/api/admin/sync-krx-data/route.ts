@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { isAdminMode } from "@/lib/adminAuth";
-import { syncKrxIndexDaily, syncKrxInvestorFlowDaily, syncKrxMarketCapDaily, syncKrxStocksDaily } from "@/lib/syncKrxOpenApi";
+import { syncKrxIndexDaily, syncKrxMarketCapDaily, syncKrxStocksDaily } from "@/lib/syncKrxOpenApi";
 
-type SyncType = "krx_index" | "krx_investor_flow" | "krx_stocks" | "krx_market_cap";
+type SyncType = "krx_index" | "krx_stocks" | "krx_market_cap";
 
 export async function POST(req: Request) {
   if (!(await isAdminMode())) {
@@ -19,10 +19,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
-    if (syncType === "krx_investor_flow") {
-      const result = await syncKrxInvestorFlowDaily(lastDays);
-      return NextResponse.json({ ok: true, syncType, ...result });
-    }
+
 
     if (syncType === "krx_stocks") {
       const result = await syncKrxStocksDaily(lastDays);
