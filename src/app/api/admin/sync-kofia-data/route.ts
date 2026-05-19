@@ -2,12 +2,24 @@ import { NextResponse } from "next/server";
 import { isAdminMode } from "@/lib/adminAuth";
 import {
   syncKofiaAll,
+  syncKofiaAllBackfill,
+  syncKofiaCmaBackfill,
   syncKofiaCmaDaily,
+  syncKofiaCreditBalanceBackfill,
   syncKofiaCreditBalanceDaily,
+  syncKofiaMarketLiquidityBackfill,
   syncKofiaMarketLiquidityDaily
 } from "@/lib/syncKofiaOpenApi";
 
-type SyncType = "kofia_liquidity" | "kofia_credit_balance" | "kofia_cma" | "kofia_all";
+type SyncType =
+  | "kofia_liquidity"
+  | "kofia_liquidity_backfill"
+  | "kofia_credit_balance"
+  | "kofia_credit_balance_backfill"
+  | "kofia_cma"
+  | "kofia_cma_backfill"
+  | "kofia_all"
+  | "kofia_all_backfill";
 
 export async function POST(req: Request) {
   if (!(await isAdminMode())) {
@@ -24,8 +36,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
+    if (syncType === "kofia_liquidity_backfill") {
+      const result = await syncKofiaMarketLiquidityBackfill(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+
     if (syncType === "kofia_credit_balance") {
       const result = await syncKofiaCreditBalanceDaily(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+
+    if (syncType === "kofia_credit_balance_backfill") {
+      const result = await syncKofiaCreditBalanceBackfill(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
@@ -34,8 +56,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
+    if (syncType === "kofia_cma_backfill") {
+      const result = await syncKofiaCmaBackfill(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+
     if (syncType === "kofia_all") {
       const result = await syncKofiaAll(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+
+    if (syncType === "kofia_all_backfill") {
+      const result = await syncKofiaAllBackfill(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 

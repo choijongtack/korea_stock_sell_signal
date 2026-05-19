@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   InvestorFlowDaily,
   MarketCmaDaily,
   MarketCreditBalanceDaily,
@@ -94,8 +94,11 @@ function evaluateCredit(tradeDate: string, creditRows: MarketCreditBalanceDaily[
     .slice(-10);
   if (window.length < 10) return { score: 0, signals: [] };
 
+  const lastRow = window.at(-1)!;
+  if (lastRow.tradeDate !== tradeDate) return { score: 0, signals: [] };
+
   const first = window[0].creditLoanMillionKrw as number;
-  const last = window.at(-1)!.creditLoanMillionKrw as number;
+  const last = lastRow.creditLoanMillionKrw as number;
   if (first <= 0) return { score: 0, signals: [] };
 
   const changeRate = (last - first) / first;

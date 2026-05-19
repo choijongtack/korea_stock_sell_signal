@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { isAdminMode } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { syncMarketBreadthForDates } from "@/lib/syncMarketBreadth";
+import { syncKrxMarketCapForDates } from "@/lib/syncKrxOpenApi";
+import { uploadKrxDailyCsv, downloadKrxDailyCsv } from "@/lib/supabaseStorage";
 
 type Payload = {
-  dataType: "market_liquidity_partial" | "market_index" | "investor_flow" | "market_cma" | "market_credit_balance" | "krx_market_breadth";
+  dataType: "market_liquidity_partial" | "market_index" | "investor_flow" | "market_cma" | "market_credit_balance" | "krx_market_breadth" | "krx_stock_daily";
   rows: Record<string, unknown>[];
 };
 
@@ -118,6 +121,25 @@ const toMarketBreadth = (rows: Record<string, unknown>[]) =>
     created_at: r.createdAt
   }));
 
+const toKrxStockDaily = (rows: Record<string, unknown>[]) =>
+  rows.map((r) => ({
+    trade_date: r.tradeDate as string,
+    market: r.market as "KOSPI" | "KOSDAQ",
+    stock_code: r.stockCode as string,
+    stock_name: r.stockName as string,
+    close_price: r.closePrice as number | null,
+    change_price: r.changePrice as number | null,
+    change_rate: r.changeRate as number | null,
+    open_price: r.openPrice as number | null,
+    high_price: r.highPrice as number | null,
+    low_price: r.lowPrice as number | null,
+    volume: r.volume as number | null,
+    trading_value_krw: r.tradingValueKrw as number | null,
+    market_cap_krw: r.marketCapKrw as number | null,
+    listed_shares: r.listedShares as number | null,
+    created_at: (r.createdAt as string) ?? new Date().toISOString()
+  }));
+
 async function upsertCmaWithFallback(
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
   payload: ReturnType<typeof toMarketCma>
@@ -221,6 +243,60 @@ export async function POST(req: Request) {
       }
       const { error } = await supabaseAdmin.from("market_credit_balance_daily").upsert(payload, { onConflict: "trade_date" });
       if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+      return NextResponse.json({ success: true, count: payload.length });
+    }
+
+    if (body.dataType === "krx_stock_daily") {
+      const payload = toKrxStockDaily(body.rows);
+      if (!payload.every((row) => hasKeys(row, ["trade_date", "market", "stock_code", "stock_name"]))) {
+        return NextResponse.json({ success: false, message: "Validation failed for krx_stock_daily." }, { status: 400 });
+      }
+
+      // Group rows by trade_date
+      const groupedByDate = payload.reduce((acc, row) => {
+        if (!acc[row.trade_date]) acc[row.trade_date] = [];
+        acc[row.trade_date].push(row);
+        return acc;
+      }, {} as Record<string, typeof payload>);
+
+      for (const [dateIso, rows] of Object.entries(groupedByDate)) {
+        const ymd = dateIso.replace(/-/g, "");
+        // Append to existing rows if any, to avoid overwriting KOSDAQ when uploading KOSPI or vice-versa
+        let existing: Record<string, unknown>[] = [];
+        try {
+          existing = await downloadKrxDailyCsv(ymd);
+        } catch {
+          // ignore, file might not exist
+        }
+
+        // Deduplicate or merge existing and new rows. Since `krx_stock_daily` PK was trade_date,market,stock_code,
+        // we can filter out existing rows that match the new ones.
+        const newMap = new Map(rows.map(r => [`${r.market}_${r.stock_code}`, r]));
+        const merged = existing.filter(r => {
+          const key = `${r.market}_${r.stock_code}`;
+          return !newMap.has(key);
+        });
+        merged.push(...(rows as unknown as Record<string, unknown>[]));
+
+        try {
+          await uploadKrxDailyCsv(ymd, merged);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "CSV Upload Error";
+          return NextResponse.json({ success: false, message }, { status: 400 });
+        }
+      }
+
+      // Automatically trigger breadth and market cap recalculations for the unique dates present in the payload
+      const uniqueDates = Array.from(new Set(payload.map((row) => row.trade_date)));
+      if (uniqueDates.length > 0) {
+        try {
+          await syncMarketBreadthForDates(uniqueDates);
+          await syncKrxMarketCapForDates(uniqueDates);
+        } catch (calcError) {
+          console.error("Post-upload aggregation failed:", calcError);
+        }
+      }
+
       return NextResponse.json({ success: true, count: payload.length });
     }
 

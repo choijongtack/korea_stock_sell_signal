@@ -50,6 +50,8 @@ export function verifyAdminSessionToken(token?: string) {
 }
 
 export async function isAdminMode() {
+  if (process.env.NODE_ENV === "development") return true;
+
   const cookieStore = await cookies();
   return verifyAdminSessionToken(cookieStore.get(ADMIN_COOKIE_NAME)?.value);
 }

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { isAdminMode } from "@/lib/adminAuth";
-import { syncKisInvestorFlowDaily } from "@/lib/syncKisOpenApi";
+import { syncKisInvestorFlowBackfill, syncKisInvestorFlowDaily } from "@/lib/syncKisOpenApi";
 
-type SyncType = "kis_investor_flow";
+type SyncType = "kis_investor_flow" | "kis_investor_flow_backfill";
 
 export async function POST(req: Request) {
   if (!(await isAdminMode())) {
@@ -16,6 +16,11 @@ export async function POST(req: Request) {
 
     if (syncType === "kis_investor_flow") {
       const result = await syncKisInvestorFlowDaily(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+
+    if (syncType === "kis_investor_flow_backfill") {
+      const result = await syncKisInvestorFlowBackfill(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 

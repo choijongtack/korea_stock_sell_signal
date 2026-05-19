@@ -94,3 +94,23 @@ export interface MarketRiskScore {
   signals: SignalEvent[];
   createdAt: string;
 }
+
+export interface KrxStockDaily {
+  tradeDate: string;
+  market: "KOSPI" | "KOSDAQ";
+  stockCode: string;
+  stockName: string;
+  closePrice: number | null;
+  changePrice: number | null;
+  changeRate: number | null;
+  openPrice: number | null;
+  highPrice: number | null;
+  lowPrice: number | null;
+  volume: number | null;
+  tradingValueKrw: number | null;
+  marketCapKrw: number | null;
+  listedShares: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+

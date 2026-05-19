@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { isAdminMode } from "@/lib/adminAuth";
-import { syncKrxIndexDaily, syncKrxMarketCapDaily, syncKrxStocksDaily } from "@/lib/syncKrxOpenApi";
+import { syncKisIndexBackfill, syncKisIndexDaily } from "@/lib/syncKisOpenApi";
+import { syncKrxMarketCapBackfill, syncKrxMarketCapDaily, syncKrxStocksBackfill, syncKrxStocksDaily } from "@/lib/syncKrxOpenApi";
 
-type SyncType = "krx_index" | "krx_stocks" | "krx_market_cap";
+type SyncType = "krx_index" | "krx_index_backfill" | "krx_stocks" | "krx_stocks_backfill" | "krx_market_cap" | "krx_market_cap_backfill";
 
 export async function POST(req: Request) {
   if (!(await isAdminMode())) {
@@ -15,19 +16,32 @@ export async function POST(req: Request) {
     const syncType = body.syncType ?? "krx_index";
 
     if (syncType === "krx_index") {
-      const result = await syncKrxIndexDaily(lastDays);
+      const result = await syncKisIndexDaily(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
-
+    if (syncType === "krx_index_backfill") {
+      const result = await syncKisIndexBackfill(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
 
     if (syncType === "krx_stocks") {
       const result = await syncKrxStocksDaily(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
+    if (syncType === "krx_stocks_backfill") {
+      const result = await syncKrxStocksBackfill(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+
     if (syncType === "krx_market_cap") {
       const result = await syncKrxMarketCapDaily(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+
+    if (syncType === "krx_market_cap_backfill") {
+      const result = await syncKrxMarketCapBackfill(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 

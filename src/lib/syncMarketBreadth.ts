@@ -1,5 +1,7 @@
 // import "server-only";
+import { buildOlderIsoDates, getOldestTradeDate } from "@/lib/syncBackfill";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { ensureKrxStockDailyRows } from "@/lib/syncKrxStockDaily";
 
 type MarketKind = "KOSPI" | "KOSDAQ";
 
@@ -176,7 +178,6 @@ async function fetchKrxOpenApiBreadth(trdDd: string, market: MarketKind): Promis
   ];
 
   for (const url of postCandidates) {
-    console.log(`Trying KRX Open API (POST): ${url}`);
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -187,13 +188,7 @@ async function fetchKrxOpenApiBreadth(trdDd: string, market: MarketKind): Promis
       body: JSON.stringify({ basDd: trdDd }),
       cache: "no-store"
     });
-    console.log(`Status: ${res.status}`);
     if (!res.ok) {
-      const body = await res.text();
-      console.log(`Response Body: ${body.slice(0, 500)}`);
-      if (res.status === 401 || res.status === 403) {
-        console.warn(`KRX Open API auth failed for ${url}`);
-      }
       continue;
     }
     let json: unknown;
@@ -211,7 +206,6 @@ async function fetchKrxOpenApiBreadth(trdDd: string, market: MarketKind): Promis
   }
 
   for (const url of getCandidates) {
-    console.log(`Trying KRX Open API (GET): ${url}`);
     const res = await fetch(url, {
       method: "GET",
       headers: {
@@ -220,14 +214,7 @@ async function fetchKrxOpenApiBreadth(trdDd: string, market: MarketKind): Promis
       },
       cache: "no-store"
     });
-    console.log(`Status: ${res.status}`);
     if (!res.ok) {
-      const body = await res.text();
-      console.log(`Response Body: ${body.slice(0, 500)}`);
-      // Log 401 but continue to other candidates
-      if (res.status === 401 || res.status === 403) {
-        console.warn(`KRX Open API auth failed for ${url}`);
-      }
       continue;
     }
     let json: unknown;
@@ -330,14 +317,13 @@ function aggregateBreadth(trdDd: string, market: MarketKind, rows: Record<string
   };
 }
 
-export async function syncMarketBreadthDaily(lastDays = 180): Promise<SyncResult> {
+export async function syncMarketBreadthDaily(lastDays = 180, targetMarket: MarketKind | "ALL" = "ALL"): Promise<SyncResult> {
   const supabase = getSupabaseAdmin();
   const warnings: string[] = [];
   const payload: BreadthRow[] = [];
 
   let datesTried = 0;
   let datesSucceeded = 0;
-  const openApiEnabled = canUseKrxOpenApi();
 
   for (let i = 0; i < lastDays; i += 1) {
     const d = new Date();
@@ -346,26 +332,76 @@ export async function syncMarketBreadthDaily(lastDays = 180): Promise<SyncResult
     datesTried += 1;
 
     let dayOk = false;
-    for (const market of ["KOSPI", "KOSDAQ"] as const) {
-      const openApiRow = await fetchKrxOpenApiBreadth(trdDd, market);
-      if (openApiRow) {
-        payload.push(openApiRow);
-        dayOk = true;
-        continue;
-      }
-
-      // If OpenAPI is configured but no rows came back for this date/market,
-      // treat it as "no market data day" and do not fall back to blocked KRX web endpoints.
-      if (openApiEnabled) {
-        warnings.push(`[${trdDd}] ${market} openapi returned empty rows.`);
-        continue;
-      }
-
-      const rows = await fetchKrxRows(trdDd, market);
+    const markets = targetMarket === "ALL" ? (["KOSPI", "KOSDAQ"] as const) : ([targetMarket] as const);
+    for (const market of markets) {
+      const { rows, warning } = await ensureKrxStockDailyRows(trdDd, market);
       if (rows.length === 0) {
-        warnings.push(`[${trdDd}] ${market} rows not found.`);
+        warnings.push(`[${trdDd}] ${market} stock daily rows not found.${warning ? ` ${warning}` : ""}`);
         continue;
       }
+      if (warning) warnings.push(`[${trdDd}] ${market} ${warning}`);
+      payload.push(aggregateBreadth(trdDd, market, rows));
+      dayOk = true;
+    }
+    if (dayOk) datesSucceeded += 1;
+  }
+
+  if (payload.length === 0) {
+    return { inserted: 0, datesTried, datesSucceeded, warnings };
+  }
+
+  const { error } = await supabase
+    .from("market_breadth_daily")
+    .upsert(payload, { onConflict: "trade_date,market" });
+  if (error) {
+    throw new Error(`market_breadth_daily upsert failed: ${error.message}`);
+  }
+
+  return {
+    inserted: payload.length,
+    datesTried,
+    datesSucceeded,
+    warnings
+  };
+}
+
+export async function syncMarketBreadthBackfill(lastDays = 180, targetMarket: MarketKind | "ALL" = "ALL"): Promise<SyncResult> {
+  const supabase = getSupabaseAdmin();
+  const oldest = await getOldestTradeDate(
+    supabase,
+    "market_breadth_daily",
+    targetMarket === "ALL" ? {} : { market: targetMarket }
+  );
+  if (!oldest) return syncMarketBreadthDaily(lastDays, targetMarket);
+
+  return syncMarketBreadthForDates(buildOlderIsoDates(oldest, lastDays), targetMarket);
+}
+
+export async function syncMarketBreadthForDates(dates: string[], targetMarket: MarketKind | "ALL" = "ALL"): Promise<SyncResult> {
+  const supabase = getSupabaseAdmin();
+  const warnings: string[] = [];
+  const payload: BreadthRow[] = [];
+
+  let datesTried = 0;
+  let datesSucceeded = 0;
+
+  for (const dateIso of dates) {
+    const trdDd = dateIso.replace(/[^\d]/g, "");
+    if (trdDd.length !== 8) {
+      warnings.push(`Invalid date format: ${dateIso}`);
+      continue;
+    }
+    datesTried += 1;
+
+    let dayOk = false;
+    const markets = targetMarket === "ALL" ? (["KOSPI", "KOSDAQ"] as const) : ([targetMarket] as const);
+    for (const market of markets) {
+      const { rows, warning } = await ensureKrxStockDailyRows(trdDd, market);
+      if (rows.length === 0) {
+        warnings.push(`[${dateIso}] ${market} stock daily rows not found.${warning ? ` ${warning}` : ""}`);
+        continue;
+      }
+      if (warning) warnings.push(`[${dateIso}] ${market} ${warning}`);
       payload.push(aggregateBreadth(trdDd, market, rows));
       dayOk = true;
     }

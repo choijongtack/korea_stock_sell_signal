@@ -16,9 +16,27 @@ async function selectFromCandidates(tables: string[]) {
   let lastErrorMessage = "Unknown error";
 
   for (const table of tables) {
-    const result = await supabase.from(table).select("*").order("trade_date", { ascending: true });
-    if (!result.error) return result;
-    lastErrorMessage = result.error.message;
+    const data: Record<string, unknown>[] = [];
+    const pageSize = 1000;
+    let from = 0;
+
+    while (true) {
+      const result = await supabase
+        .from(table)
+        .select("*")
+        .order("trade_date", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (result.error) {
+        lastErrorMessage = result.error.message;
+        break;
+      }
+
+      const rows = result.data ?? [];
+      data.push(...rows);
+      if (rows.length < pageSize) return { data, error: null };
+      from += pageSize;
+    }
   }
 
   throw new Error(lastErrorMessage);
@@ -28,8 +46,24 @@ async function selectOptionalFromCandidates(tables: string[]) {
   const supabase = getSupabaseAdmin();
 
   for (const table of tables) {
-    const result = await supabase.from(table).select("*").order("trade_date", { ascending: true });
-    if (!result.error) return result;
+    const data: Record<string, unknown>[] = [];
+    const pageSize = 1000;
+    let from = 0;
+
+    while (true) {
+      const result = await supabase
+        .from(table)
+        .select("*")
+        .order("trade_date", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (result.error) break;
+
+      const rows = result.data ?? [];
+      data.push(...rows);
+      if (rows.length < pageSize) return { data, error: null };
+      from += pageSize;
+    }
   }
 
   return { data: [], error: null };

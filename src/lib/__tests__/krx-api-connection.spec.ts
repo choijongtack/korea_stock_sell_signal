@@ -1,14 +1,32 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
 import { syncMarketBreadthDaily } from "../syncMarketBreadth";
 
-// Note: This test requires environment variables from .env.local
-// Vitest might not load .env.local automatically depending on config.
+const envPath = path.resolve(process.cwd(), ".env.local");
+if (fs.existsSync(envPath)) {
+  for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    const match = line.match(/^\s*([^#=]+)=(.*)$/);
+    if (match && !process.env[match[1].trim()]) {
+      process.env[match[1].trim()] = match[2].trim().replace(/^["']|["']$/g, "");
+    }
+  }
+}
+
+const hasKrxBreadthEnv = Boolean(
+  (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    process.env.KRX_OPENAPI_BASE_URL &&
+    process.env.KRX_OPENAPI_AUTH_KEY &&
+    process.env.KRX_OPENAPI_BREADTH_API_ID_KOSPI &&
+    process.env.KRX_OPENAPI_BREADTH_API_ID_KOSDAQ
+);
 
 describe("KRX API Connection Test", () => {
-  it("should attempt to fetch data from KRX Open API or legacy endpoint", async () => {
+  it.skipIf(!hasKrxBreadthEnv)("should attempt to fetch data from KRX Open API or legacy endpoint", async () => {
     // We can't easily test the actual network call in a CI environment without real keys,
     // but the user's environment should have the keys.
     // We'll try to run the sync for just 1 day (today or yesterday) to see if it works.

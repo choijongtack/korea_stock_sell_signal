@@ -1,4 +1,5 @@
 import "server-only";
+import { buildOlderDateRange, buildRecentDateRange, getOldestTradeDate } from "@/lib/syncBackfill";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 type SyncType = "kofia_liquidity" | "kofia_credit_balance" | "kofia_cma";
@@ -114,23 +115,11 @@ async function fetchKofiaItems(endpoint: string, beginBasDt: string, endBasDt: s
   return allItems;
 }
 
-function buildDateRange(lastDays: number): { beginBasDt: string; endBasDt: string; datesTried: number } {
-  const end = new Date();
-  const begin = new Date();
-  begin.setDate(begin.getDate() - Math.max(0, lastDays - 1));
-  return {
-    beginBasDt: toYmd(begin),
-    endBasDt: toYmd(end),
-    datesTried: lastDays
-  };
-}
-
 function countDistinctDates(rows: Array<{ trade_date: string }>): number {
   return new Set(rows.map((row) => row.trade_date)).size;
 }
 
-export async function syncKofiaMarketLiquidityDaily(lastDays = 180): Promise<SyncSummary> {
-  const { beginBasDt, endBasDt, datesTried } = buildDateRange(lastDays);
+async function syncKofiaMarketLiquidityRange(beginBasDt: string, endBasDt: string, datesTried: number): Promise<SyncSummary> {
   const items = await fetchKofiaItems(ENDPOINTS.kofia_liquidity, beginBasDt, endBasDt);
   const warnings: string[] = [];
 
@@ -161,8 +150,20 @@ export async function syncKofiaMarketLiquidityDaily(lastDays = 180): Promise<Syn
   return { inserted: payload.length, datesTried, datesSucceeded: countDistinctDates(payload), warnings };
 }
 
-export async function syncKofiaCreditBalanceDaily(lastDays = 180): Promise<SyncSummary> {
-  const { beginBasDt, endBasDt, datesTried } = buildDateRange(lastDays);
+export async function syncKofiaMarketLiquidityDaily(lastDays = 180): Promise<SyncSummary> {
+  const { beginYmd, endYmd, datesTried } = buildRecentDateRange(lastDays);
+  return syncKofiaMarketLiquidityRange(beginYmd, endYmd, datesTried);
+}
+
+export async function syncKofiaMarketLiquidityBackfill(lastDays = 180): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const oldest = await getOldestTradeDate(supabase, "market_liquidity_daily");
+  if (!oldest) return syncKofiaMarketLiquidityDaily(lastDays);
+  const { beginYmd, endYmd, datesTried } = buildOlderDateRange(oldest, lastDays);
+  return syncKofiaMarketLiquidityRange(beginYmd, endYmd, datesTried);
+}
+
+async function syncKofiaCreditBalanceRange(beginBasDt: string, endBasDt: string, datesTried: number): Promise<SyncSummary> {
   const items = await fetchKofiaItems(ENDPOINTS.kofia_credit_balance, beginBasDt, endBasDt);
   const warnings: string[] = [];
 
@@ -170,9 +171,9 @@ export async function syncKofiaCreditBalanceDaily(lastDays = 180): Promise<SyncS
     .map((item) => {
       const basDt = compactDate(item.basDt);
       if (!basDt) return null;
-      const creditLoan = toNumber(item.crdTrFingWhl);
-      const creditShort = toNumber(item.crdTrLndrWhl);
-      const collateral = toNumber(item.dpsgScrtMogFing);
+      const creditLoan = krwToMillion(item.crdTrFingWhl);
+      const creditShort = krwToMillion(item.crdTrLndrWhl);
+      const collateral = krwToMillion(item.dpsgScrtMogFing);
       const allNumbers = [creditLoan, creditShort, collateral].every((v) => typeof v === "number");
       return {
         trade_date: toIsoDate(basDt),
@@ -197,6 +198,19 @@ export async function syncKofiaCreditBalanceDaily(lastDays = 180): Promise<SyncS
   return { inserted: payload.length, datesTried, datesSucceeded: countDistinctDates(payload), warnings };
 }
 
+export async function syncKofiaCreditBalanceDaily(lastDays = 180): Promise<SyncSummary> {
+  const { beginYmd, endYmd, datesTried } = buildRecentDateRange(lastDays);
+  return syncKofiaCreditBalanceRange(beginYmd, endYmd, datesTried);
+}
+
+export async function syncKofiaCreditBalanceBackfill(lastDays = 180): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const oldest = await getOldestTradeDate(supabase, "market_credit_balance_daily");
+  if (!oldest) return syncKofiaCreditBalanceDaily(lastDays);
+  const { beginYmd, endYmd, datesTried } = buildOlderDateRange(oldest, lastDays);
+  return syncKofiaCreditBalanceRange(beginYmd, endYmd, datesTried);
+}
+
 function isTotalInvestorCategory(value: unknown): boolean {
   const raw = String(value ?? "").replace(/\s/g, "");
   return raw.includes("합계") || raw.toUpperCase() === "TOTAL";
@@ -212,8 +226,7 @@ function cmaBucket(value: unknown): "rp" | "mmf" | "jonggeum" | "issuingNote" | 
   return "other";
 }
 
-export async function syncKofiaCmaDaily(lastDays = 180): Promise<SyncSummary> {
-  const { beginBasDt, endBasDt, datesTried } = buildDateRange(lastDays);
+async function syncKofiaCmaRange(beginBasDt: string, endBasDt: string, datesTried: number): Promise<SyncSummary> {
   const items = await fetchKofiaItems(ENDPOINTS.kofia_cma, beginBasDt, endBasDt);
   const warnings: string[] = [];
   const hasTotalCategoryByDate = new Map<string, boolean>();
@@ -304,11 +317,39 @@ export async function syncKofiaCmaDaily(lastDays = 180): Promise<SyncSummary> {
   return { inserted: payload.length, datesTried, datesSucceeded: countDistinctDates(payload), warnings };
 }
 
+export async function syncKofiaCmaDaily(lastDays = 180): Promise<SyncSummary> {
+  const { beginYmd, endYmd, datesTried } = buildRecentDateRange(lastDays);
+  return syncKofiaCmaRange(beginYmd, endYmd, datesTried);
+}
+
+export async function syncKofiaCmaBackfill(lastDays = 180): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const oldest = await getOldestTradeDate(supabase, "market_cma_daily");
+  if (!oldest) return syncKofiaCmaDaily(lastDays);
+  const { beginYmd, endYmd, datesTried } = buildOlderDateRange(oldest, lastDays);
+  return syncKofiaCmaRange(beginYmd, endYmd, datesTried);
+}
+
 export async function syncKofiaAll(lastDays = 180): Promise<SyncSummary> {
   const results = await Promise.all([
     syncKofiaMarketLiquidityDaily(lastDays),
     syncKofiaCreditBalanceDaily(lastDays),
     syncKofiaCmaDaily(lastDays)
+  ]);
+
+  return {
+    inserted: results.reduce((sum, result) => sum + result.inserted, 0),
+    datesTried: lastDays,
+    datesSucceeded: Math.max(...results.map((result) => result.datesSucceeded)),
+    warnings: results.flatMap((result) => result.warnings)
+  };
+}
+
+export async function syncKofiaAllBackfill(lastDays = 180): Promise<SyncSummary> {
+  const results = await Promise.all([
+    syncKofiaMarketLiquidityBackfill(lastDays),
+    syncKofiaCreditBalanceBackfill(lastDays),
+    syncKofiaCmaBackfill(lastDays)
   ]);
 
   return {

@@ -1,4 +1,4 @@
-import type { InvestorFlowDaily, MarketBreadthDaily, MarketCmaDaily, MarketCreditBalanceDaily, MarketIndexDaily, MarketLiquidityDaily } from "@/types/market";
+import type { InvestorFlowDaily, MarketBreadthDaily, MarketCmaDaily, MarketCreditBalanceDaily, MarketIndexDaily, MarketLiquidityDaily, KrxStockDaily } from "@/types/market";
 
 type SaveResult = { success: true; count: number } | { success: false; message: string };
 type PartialMarketLiquidityDaily = Pick<MarketLiquidityDaily, "tradeDate" | "createdAt"> &
@@ -10,7 +10,8 @@ type UploadPayload =
   | { dataType: "investor_flow"; rows: InvestorFlowDaily[] }
   | { dataType: "market_cma"; rows: MarketCmaDaily[] }
   | { dataType: "market_credit_balance"; rows: MarketCreditBalanceDaily[] }
-  | { dataType: "krx_market_breadth"; rows: MarketBreadthDaily[] };
+  | { dataType: "krx_market_breadth"; rows: MarketBreadthDaily[] }
+  | { dataType: "krx_stock_daily"; rows: KrxStockDaily[] };
 
 async function saveToServer(payload: UploadPayload): Promise<SaveResult> {
   const response = await fetch("/api/upload-market-data", {
@@ -49,3 +50,8 @@ export function upsertMarketCreditBalanceDaily(rows: MarketCreditBalanceDaily[])
 export function upsertMarketBreadthDaily(rows: MarketBreadthDaily[]): Promise<SaveResult> {
   return saveToServer({ dataType: "krx_market_breadth", rows });
 }
+
+export function upsertKrxStockDaily(rows: KrxStockDaily[]): Promise<SaveResult> {
+  return saveToServer({ dataType: "krx_stock_daily", rows });
+}
+
