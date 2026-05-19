@@ -9,10 +9,25 @@ import { normalizeKrxInvestorFlow } from "@/lib/normalizeKrxInvestorFlow";
 import { normalizeKrxIndex } from "@/lib/normalizeKrxIndex";
 import { upsertInvestorFlowDaily, upsertMarketBreadthDaily, upsertMarketCmaDaily, upsertMarketCreditBalanceDaily, upsertMarketIndexDaily, upsertMarketLiquidityDailyPartial } from "@/lib/saveMarketDataApi";
 
-type UploadDataType = "freesis_market_liquidity" | "freesis_credit_balance" | "freesis_cma" | "krx_index" | "krx_investor_flow" | "krx_market_breadth";
+type UploadDataType =
+  | "freesis_market_liquidity"
+  | "freesis_credit_balance"
+  | "freesis_cma"
+  | "krx_index"
+  | "krx_investor_flow"
+  | "krx_market_breadth"
+  | "krx_market_cap";
 type ParsedRow = Record<string, string | number | boolean | null>;
 
-const DATA_TYPE_OPTIONS: UploadDataType[] = ["freesis_market_liquidity", "freesis_credit_balance", "freesis_cma", "krx_index", "krx_investor_flow", "krx_market_breadth"];
+const DATA_TYPE_OPTIONS: UploadDataType[] = [
+  "freesis_market_liquidity",
+  "freesis_credit_balance",
+  "freesis_cma",
+  "krx_index",
+  "krx_investor_flow",
+  "krx_market_breadth",
+  "krx_market_cap"
+];
 const PREVIEW_LIMIT = 20;
 const INDEX_ORDER: Array<MarketIndexDaily["market"]> = ["KOSPI", "KOSDAQ", "KOSPI200"];
 const MERGED_PREVIEW_COLUMNS = [
@@ -30,6 +45,12 @@ const MERGED_PREVIEW_COLUMNS = [
 
 const isFreesisType = (type: UploadDataType) =>
   type === "freesis_market_liquidity" || type === "freesis_credit_balance" || type === "freesis_cma";
+
+const kofiaSyncTypeByUploadType: Partial<Record<UploadDataType, "kofia_liquidity" | "kofia_credit_balance" | "kofia_cma">> = {
+  freesis_market_liquidity: "kofia_liquidity",
+  freesis_credit_balance: "kofia_credit_balance",
+  freesis_cma: "kofia_cma"
+};
 
 const composeFreesisHeader = (top: any, sub: any): string => {
   const a = String(top ?? "").replace(/\s+/g, " ").trim();
@@ -412,6 +433,11 @@ export function DataUpload() {
         return;
       }
 
+      if (selectedType === "krx_market_cap") {
+        setSaveMessage("market_cap_daily is populated through Auto Sync from KRX.");
+        return;
+      }
+
       const normalizedKrx = normalizeKrxInvestorFlow(parsedRows, { market: investorFlowMarket });
       if (normalizedKrx.warnings.length > 0) {
         setValidationMessage((prev) => `${prev} | warnings=${normalizedKrx.warnings.slice(0, 3).join(" ; ")}`);
@@ -470,7 +496,7 @@ export function DataUpload() {
     }
   };
 
-  const handleAutoSyncKrxData = async (syncType: "krx_index" | "krx_investor_flow") => {
+  const handleAutoSyncKrxData = async (syncType: "krx_index" | "krx_investor_flow" | "krx_market_cap") => {
     setError("");
     setSaveMessage("");
     setValidationMessage("");
@@ -502,10 +528,88 @@ export function DataUpload() {
     }
   };
 
+  const handleAutoSyncKisData = async () => {
+    setError("");
+    setSaveMessage("");
+    setValidationMessage("");
+    setIsSyncingBreadth(true);
+    try {
+      const response = await fetch("/api/admin/sync-kis-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lastDays: syncDays, syncType: "kis_investor_flow" })
+      });
+      const result = (await response.json()) as {
+        ok: boolean;
+        inserted?: number;
+        datesTried?: number;
+        datesSucceeded?: number;
+        warnings?: string[];
+        error?: string;
+      };
+      if (!response.ok || !result.ok) throw new Error(result.error ?? "Auto sync failed");
+      const warnings = (result.warnings ?? []).slice(0, 5);
+      setSaveMessage(
+        `Auto sync (KIS investor flow) completed: inserted=${result.inserted ?? 0}, tried=${result.datesTried ?? 0}, succeeded=${result.datesSucceeded ?? 0}${warnings.length ? ` | warnings: ${warnings.join(" ; ")}` : ""}`
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(`Auto sync failed: ${message}`);
+    } finally {
+      setIsSyncingBreadth(false);
+    }
+  };
+
+  const handleAutoSyncKofiaData = async (syncType: "kofia_liquidity" | "kofia_credit_balance" | "kofia_cma") => {
+    setError("");
+    setSaveMessage("");
+    setValidationMessage("");
+    setIsSyncingBreadth(true);
+    try {
+      const response = await fetch("/api/admin/sync-kofia-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lastDays: syncDays, syncType })
+      });
+      const result = (await response.json()) as {
+        ok: boolean;
+        inserted?: number;
+        datesTried?: number;
+        datesSucceeded?: number;
+        warnings?: string[];
+        error?: string;
+      };
+      if (!response.ok || !result.ok) throw new Error(result.error ?? "Auto sync failed");
+      const warnings = (result.warnings ?? []).slice(0, 5);
+      setSaveMessage(
+        `Auto sync (${syncType}) completed: inserted=${result.inserted ?? 0}, tried=${result.datesTried ?? 0}, succeeded=${result.datesSucceeded ?? 0}${warnings.length ? ` | warnings: ${warnings.join(" ; ")}` : ""}`
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(`Auto sync failed: ${message}`);
+    } finally {
+      setIsSyncingBreadth(false);
+    }
+  };
+
   return (
     <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
       <h2 className="text-lg font-semibold">Data Upload</h2>
       <p className="mt-1 text-sm text-slate-500">Upload CSV or Excel and preview data. For krx_index, multiple files are merged and previewed only.</p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <label className="text-sm text-slate-700">
+          <span className="mr-2">Auto sync days</span>
+          <input
+            type="number"
+            min={1}
+            max={1000}
+            value={syncDays}
+            onChange={(e) => setSyncDays(Math.min(1000, Math.max(1, Number(e.target.value) || 1)))}
+            className="w-28 rounded-lg border border-slate-300 px-2 py-1"
+          />
+        </label>
+      </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <label className="text-sm">
@@ -554,7 +658,12 @@ export function DataUpload() {
         <button
           type="button"
           onClick={handleSave}
-          disabled={isSaving || isLoading || (selectedType === "krx_index" ? mergedIndexRows.length === 0 : parsedRows.length === 0)}
+          disabled={
+            isSaving ||
+            isLoading ||
+            selectedType === "krx_market_cap" ||
+            (selectedType === "krx_index" ? mergedIndexRows.length === 0 : parsedRows.length === 0)
+          }
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {isSaving ? "Saving..." : "Save to Supabase"}
@@ -563,17 +672,6 @@ export function DataUpload() {
       </div>
       {selectedType === "krx_market_breadth" && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <label className="text-sm text-slate-700">
-            <span className="mr-2">Auto sync days</span>
-            <input
-              type="number"
-              min={1}
-              max={1000}
-              value={syncDays}
-              onChange={(e) => setSyncDays(Math.min(1000, Math.max(1, Number(e.target.value) || 1)))}
-              className="w-28 rounded-lg border border-slate-300 px-2 py-1"
-            />
-          </label>
           <button
             type="button"
             onClick={handleAutoSyncBreadth}
@@ -584,19 +682,8 @@ export function DataUpload() {
           </button>
         </div>
       )}
-      {(selectedType === "krx_index" || selectedType === "krx_investor_flow") && (
+      {(selectedType === "krx_index" || selectedType === "krx_market_cap") && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <label className="text-sm text-slate-700">
-            <span className="mr-2">Auto sync days</span>
-            <input
-              type="number"
-              min={1}
-              max={1000}
-              value={syncDays}
-              onChange={(e) => setSyncDays(Math.min(1000, Math.max(1, Number(e.target.value) || 1)))}
-              className="w-28 rounded-lg border border-slate-300 px-2 py-1"
-            />
-          </label>
           <button
             type="button"
             onClick={() => handleAutoSyncKrxData(selectedType)}
@@ -604,6 +691,33 @@ export function DataUpload() {
             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-emerald-300"
           >
             {isSyncingBreadth ? "Syncing..." : `Auto Sync ${selectedType}`}
+          </button>
+        </div>
+      )}
+      {selectedType === "krx_investor_flow" && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleAutoSyncKisData}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-emerald-300"
+          >
+            {isSyncingBreadth ? "Syncing..." : "Auto Sync KIS Investor Flow"}
+          </button>
+        </div>
+      )}
+      {isFreesisType(selectedType) && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              const syncType = kofiaSyncTypeByUploadType[selectedType];
+              if (syncType) void handleAutoSyncKofiaData(syncType);
+            }}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-emerald-300"
+          >
+            {isSyncingBreadth ? "Syncing..." : `Auto Sync ${kofiaSyncTypeByUploadType[selectedType]}`}
           </button>
         </div>
       )}

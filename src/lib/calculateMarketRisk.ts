@@ -14,6 +14,7 @@ import type {
   CmaDaily as RiskCmaDaily,
   CreditBalanceDaily as RiskCreditBalanceDaily,
   InvestorFlowDaily as RiskInvestorFlowDaily,
+  MarketCapDaily as RiskMarketCapDaily,
   MarketIndexDaily as RiskMarketIndexDaily,
   MarketLiquidityDaily as RiskMarketLiquidityDaily,
   MarketRiskCalculationResult,
@@ -323,8 +324,20 @@ type CalculateMarketRiskParams = {
   cmaRows: RiskCmaDaily[];
   indexRows: RiskMarketIndexDaily[];
   flowRows: RiskInvestorFlowDaily[];
+  marketCapRows?: RiskMarketCapDaily[];
   debug?: boolean;
 };
+
+function percentile(values: number[], p: number): number | null {
+  const sorted = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
+  if (sorted.length === 0) return null;
+  const rank = (sorted.length - 1) * p;
+  const lower = Math.floor(rank);
+  const upper = Math.ceil(rank);
+  if (lower === upper) return sorted[lower];
+  const weight = rank - lower;
+  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+}
 
 export function calculateMarketRiskEngine({
   liquidityRows,
@@ -332,6 +345,7 @@ export function calculateMarketRiskEngine({
   cmaRows,
   indexRows,
   flowRows,
+  marketCapRows = [],
   debug = false
 }: CalculateMarketRiskParams): MarketRiskCalculationResult {
   const sortedKospi = [...indexRows]
@@ -351,6 +365,23 @@ export function calculateMarketRiskEngine({
   const liquidityByDate = new Map(liquidityRows.map((r) => [r.trade_date, r]));
   const creditByDate = new Map(creditRows.map((r) => [r.trade_date, r]));
   const cmaByDate = new Map(cmaRows.map((r) => [r.trade_date, r]));
+  const marketCapByDate = new Map<string, number>();
+  for (const row of marketCapRows) {
+    const market = String(row.market).replace(/\s/g, "").toUpperCase();
+    if (market !== "KOSPI" && market !== "KOSDAQ") continue;
+    if (typeof row.market_cap_million_krw !== "number" || row.market_cap_million_krw <= 0) continue;
+    marketCapByDate.set(row.trade_date, (marketCapByDate.get(row.trade_date) ?? 0) + row.market_cap_million_krw);
+  }
+
+  const creditToMarketCapRatioByDate = new Map<string, number>();
+  for (const [date, credit] of creditByDate) {
+    const creditLoan = credit.credit_loan_million_krw;
+    const totalMarketCap = marketCapByDate.get(date) ?? null;
+    if (typeof creditLoan === "number" && typeof totalMarketCap === "number" && totalMarketCap > 0) {
+      creditToMarketCapRatioByDate.set(date, (creditLoan / totalMarketCap) * 100);
+    }
+  }
+
   const flowByDate = new Map<string, { foreign: number; institution: number }>();
   for (const row of flowRows) {
     if (String(row.market).replace(/\s/g, "").toUpperCase() !== "KOSPI") continue;
@@ -578,6 +609,29 @@ export function calculateMarketRiskEngine({
       }
     }
 
+    const creditToMarketCapRatio = creditToMarketCapRatioByDate.get(date) ?? null;
+    if (creditToMarketCapRatio !== null) {
+      const historicalRatios = sortedKospi
+        .slice(0, i)
+        .map((r) => creditToMarketCapRatioByDate.get(r.trade_date) ?? null)
+        .filter((v): v is number => typeof v === "number");
+      const p95 = historicalRatios.length >= 60 ? percentile(historicalRatios, 0.95) : null;
+      if (p95 !== null && creditToMarketCapRatio > p95) {
+        const p99 = percentile(historicalRatios, 0.99);
+        const isExtreme = p99 !== null && creditToMarketCapRatio > p99;
+        const scoreDelta = isExtreme ? 10 : 7;
+        leverageScore += scoreDelta;
+        daySignals.push({
+          trade_date: date,
+          signal_type: "credit_to_market_cap_ratio_high",
+          severity: isExtreme ? "warning" : "caution",
+          score_delta: scoreDelta,
+          title: "신용융자/시가총액 비율 과열",
+          description: `신용융자/KOSPI+KOSDAQ 시가총액 비율이 ${creditToMarketCapRatio.toFixed(3)}%로 과거 95% 분위(${p95.toFixed(3)}%)를 초과했습니다.`
+        });
+      }
+    }
+
     leverageScore = Math.min(25, leverageScore);
 
     if (debug && i >= Math.max(0, sortedKospi.length - 10)) {
@@ -590,6 +644,7 @@ export function calculateMarketRiskEngine({
         totalCredit,
         totalCreditHigh60,
         creditToDepositRatio,
+        creditToMarketCapRatio,
         leverageScore
       });
     }

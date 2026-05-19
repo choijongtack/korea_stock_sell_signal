@@ -1,7 +1,12 @@
 ﻿import { NextResponse } from "next/server";
+import { isAdminMode } from "@/lib/adminAuth";
 import { runRiskCalculation } from "@/lib/runRiskCalculation";
 
 export async function POST() {
+  if (!(await isAdminMode())) {
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const result = await runRiskCalculation({ debug: true });
     return NextResponse.json({ ok: true, ...result });

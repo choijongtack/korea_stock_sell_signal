@@ -78,6 +78,13 @@ export type InvestorFlowDaily = {
   program_net_buy?: number | null;
 };
 
+export type MarketCapDaily = {
+  trade_date: string;
+  market: "KOSPI" | "KOSDAQ" | string;
+  market_cap_million_krw: number | null;
+  listed_stock_count?: number | null;
+};
+
 export type SignalEventInput = {
   trade_date: string;
   signal_type: string;

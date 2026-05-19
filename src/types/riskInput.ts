@@ -59,6 +59,14 @@ export type InvestorFlowDailyRow = {
   created_at?: string | null;
 };
 
+export type MarketCapDailyRow = {
+  trade_date: string;
+  market: string;
+  market_cap_million_krw: number | null;
+  listed_stock_count?: number | null;
+  created_at?: string | null;
+};
+
 export type SignalEventDbInput = {
   trade_date: string;
   ticker: string;

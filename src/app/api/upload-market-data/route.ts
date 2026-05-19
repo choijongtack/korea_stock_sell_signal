@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminMode } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 type Payload = {
@@ -168,6 +169,10 @@ async function upsertInvestorFlowWithFallback(
 }
 
 export async function POST(req: Request) {
+  if (!(await isAdminMode())) {
+    return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = (await req.json()) as Payload;

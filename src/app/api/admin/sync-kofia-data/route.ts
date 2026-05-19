@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { isAdminMode } from "@/lib/adminAuth";
-import { syncKrxIndexDaily, syncKrxInvestorFlowDaily, syncKrxMarketCapDaily, syncKrxStocksDaily } from "@/lib/syncKrxOpenApi";
+import {
+  syncKofiaAll,
+  syncKofiaCmaDaily,
+  syncKofiaCreditBalanceDaily,
+  syncKofiaMarketLiquidityDaily
+} from "@/lib/syncKofiaOpenApi";
 
-type SyncType = "krx_index" | "krx_investor_flow" | "krx_stocks" | "krx_market_cap";
+type SyncType = "kofia_liquidity" | "kofia_credit_balance" | "kofia_cma" | "kofia_all";
 
 export async function POST(req: Request) {
   if (!(await isAdminMode())) {
@@ -12,25 +17,25 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => ({}))) as { lastDays?: number; syncType?: SyncType };
     const lastDays = typeof body.lastDays === "number" && body.lastDays > 0 ? Math.min(body.lastDays, 1000) : 180;
-    const syncType = body.syncType ?? "krx_index";
+    const syncType = body.syncType ?? "kofia_all";
 
-    if (syncType === "krx_index") {
-      const result = await syncKrxIndexDaily(lastDays);
+    if (syncType === "kofia_liquidity") {
+      const result = await syncKofiaMarketLiquidityDaily(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
-    if (syncType === "krx_investor_flow") {
-      const result = await syncKrxInvestorFlowDaily(lastDays);
+    if (syncType === "kofia_credit_balance") {
+      const result = await syncKofiaCreditBalanceDaily(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
-    if (syncType === "krx_stocks") {
-      const result = await syncKrxStocksDaily(lastDays);
+    if (syncType === "kofia_cma") {
+      const result = await syncKofiaCmaDaily(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
-    if (syncType === "krx_market_cap") {
-      const result = await syncKrxMarketCapDaily(lastDays);
+    if (syncType === "kofia_all") {
+      const result = await syncKofiaAll(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 

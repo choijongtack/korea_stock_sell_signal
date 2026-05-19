@@ -11,6 +11,15 @@ interface SyncSummary {
   warnings: string[];
 }
 
+interface MarketCapRow {
+  trade_date: string;
+  market: "KOSPI" | "KOSDAQ";
+  market_cap_million_krw: number;
+  listed_stock_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 const getBaseUrl = () => (process.env.KRX_OPENAPI_BASE_URL ?? "").replace(/\/+$/, "");
 const getAuthKey = () => process.env.KRX_OPENAPI_AUTH_KEY ?? "";
 const getAuthKeyKospi = () => process.env.KRX_OPENAPI_AUTH_KEY_KOSPI ?? "";
@@ -80,7 +89,7 @@ function authKeyFor(market: Market): string {
 function apiIdForIndex(market: Market): string {
   if (market === "KOSPI") return getIndexApiIdKospi();
   if (market === "KOSDAQ") return getIndexApiIdKosdaq();
-  return getIndexApiIdKospi200();
+  return getIndexApiIdKospi200() || getIndexApiIdKospi();
 }
 
 function apiIdForInvestor(market: Exclude<Market, "KOSPI200">): string {
@@ -91,12 +100,12 @@ function apiIdForStocks(market: Exclude<Market, "KOSPI200">): string {
   return market === "KOSPI" ? getStocksApiIdKospi() : getStocksApiIdKosdaq();
 }
 
-async function postRows(apiId: string, market: Market, basDd: string): Promise<Record<string, unknown>[]> {
+async function postRows(apiId: string, market: Market, basDd: string, apiGroup: "sto" | "idx" = "sto"): Promise<Record<string, unknown>[]> {
   const base = getBaseUrl();
   const key = authKeyFor(market);
   if (!base || !key || !apiId) return [];
 
-  const candidates = [`${base}/svc/apis/sto/${apiId}`, `${base}/svc/sample/apis/sto/${apiId}`];
+  const candidates = [`${base}/svc/apis/${apiGroup}/${apiId}`, `${base}/svc/sample/apis/${apiGroup}/${apiId}`];
   for (const url of candidates) {
     const res = await fetch(url, {
       method: "POST",
@@ -110,6 +119,33 @@ async function postRows(apiId: string, market: Market, basDd: string): Promise<R
     if (rows.length > 0) return rows;
   }
   return [];
+}
+
+function normalizeIndexName(value: unknown): string {
+  return String(value ?? "").replace(/\s/g, "").toUpperCase();
+}
+
+function findIndexRow(rows: Record<string, unknown>[], market: Market): Record<string, unknown> | null {
+  const wanted: Record<Market, string[]> = {
+    KOSPI: ["KOSPI", "코스피"],
+    KOSDAQ: ["KOSDAQ", "코스닥"],
+    KOSPI200: ["KOSPI200", "코스피200"]
+  };
+  const normalizedWanted = wanted[market].map(normalizeIndexName);
+
+  return (
+    rows.find((row) => {
+      const name = normalizeIndexName(row.IDX_NM);
+      const close = num(row.CLSPRC_IDX);
+      return close !== null && normalizedWanted.some((target) => name === target);
+    }) ??
+    rows.find((row) => {
+      const name = normalizeIndexName(row.IDX_NM);
+      const close = num(row.CLSPRC_IDX);
+      return close !== null && normalizedWanted.some((target) => name.includes(target));
+    }) ??
+    null
+  );
 }
 
 export async function syncKrxIndexDaily(lastDays = 180): Promise<SyncSummary> {
@@ -129,17 +165,18 @@ export async function syncKrxIndexDaily(lastDays = 180): Promise<SyncSummary> {
     for (const market of ["KOSPI", "KOSDAQ", "KOSPI200"] as const) {
       const apiId = apiIdForIndex(market);
       if (!apiId) continue;
-      const rows = await postRows(apiId, market, ymd);
+      const rows = await postRows(apiId, market, ymd, "idx");
       if (rows.length === 0) {
         warnings.push(`[${ymd}] ${market} index rows not found.`);
         continue;
       }
 
       // Prefer an explicit index row when available.
-      const candidate =
-        rows.find((r) => typeof r.IDX_NM === "string" && String(r.IDX_NM).toUpperCase().includes(market)) ??
-        rows.find((r) => "CLSPRC_IDX" in r || "CMPPREVDD_IDX" in r) ??
-        rows[0];
+      const candidate = findIndexRow(rows, market);
+      if (!candidate) {
+        warnings.push(`[${ymd}] ${market} index row mapping failed (target index not found). apiId=${apiId}`);
+        continue;
+      }
 
       const mapped = mapIndexRowToDaily(candidate, market, ymd);
       if (!mapped) {
@@ -257,4 +294,61 @@ export async function syncKrxStocksDaily(lastDays = 5): Promise<SyncSummary> {
   }
 
   return { inserted, datesTried, datesSucceeded, warnings };
+}
+
+export async function syncKrxMarketCapDaily(lastDays = 180): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const warnings: string[] = [];
+  const payload: MarketCapRow[] = [];
+  let datesTried = 0;
+  let datesSucceeded = 0;
+
+  for (let i = 0; i < lastDays; i += 1) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const ymd = toYmd(d);
+    datesTried += 1;
+    let dayOk = false;
+
+    for (const market of ["KOSPI", "KOSDAQ"] as const) {
+      const apiId = apiIdForStocks(market);
+      if (!apiId) {
+        warnings.push(`[${ymd}] ${market} stocks api id missing.`);
+        continue;
+      }
+
+      const rows = await postRows(apiId, market, ymd);
+      if (rows.length === 0) {
+        warnings.push(`[${ymd}] ${market} market cap rows not found.`);
+        continue;
+      }
+
+      const marketCapKrw = rows.reduce((sum, row) => sum + (num(row.MKTCAP) ?? 0), 0);
+      const listedStockCount = rows.filter((row) => (num(row.MKTCAP) ?? 0) > 0).length;
+      if (marketCapKrw <= 0 || listedStockCount === 0) {
+        warnings.push(`[${ymd}] ${market} market cap aggregation failed.`);
+        continue;
+      }
+
+      const now = new Date().toISOString();
+      payload.push({
+        trade_date: toIso(ymd),
+        market,
+        market_cap_million_krw: marketCapKrw / 1_000_000,
+        listed_stock_count: listedStockCount,
+        created_at: now,
+        updated_at: now
+      });
+      dayOk = true;
+    }
+
+    if (dayOk) datesSucceeded += 1;
+  }
+
+  if (payload.length > 0) {
+    const { error } = await supabase.from("market_cap_daily").upsert(payload, { onConflict: "trade_date,market" });
+    if (error) throw new Error(`market_cap_daily upsert failed: ${error.message}`);
+  }
+
+  return { inserted: payload.length, datesTried, datesSucceeded, warnings };
 }

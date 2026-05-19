@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateMarketRisk } from "@/lib/calculateMarketRisk";
+import { calculateMarketRisk, calculateMarketRiskEngine } from "@/lib/calculateMarketRisk";
 import { normalizeFreesisLiquidity } from "@/lib/normalizeFreesis";
 import { normalizeKrxIndex } from "@/lib/normalizeKrxIndex";
 import { normalizeInvestorFlow } from "@/lib/normalizeInvestorFlow";
@@ -147,6 +147,56 @@ describe("leverage score date alignment", () => {
 
     const result = calculateMarketRisk(liquidity, index, flow, credit);
     expect(result.leverageScore).toBeGreaterThan(0);
+  });
+});
+
+describe("credit to market cap ratio", () => {
+  const engineDate = (day: number): string => {
+    const d = new Date(Date.UTC(2026, 0, day));
+    return d.toISOString().slice(0, 10);
+  };
+
+  it("adds a leverage signal only after credit/market cap ratio exceeds historical p95", () => {
+    const liquidityRows = Array.from({ length: 65 }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      investor_deposit_million_krw: 10000
+    }));
+    const creditRows = Array.from({ length: 65 }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      credit_loan_million_krw: 1000,
+      total_credit_million_krw: 1100
+    }));
+    const indexRows = Array.from({ length: 65 }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      market: "KOSPI",
+      close: 3000
+    }));
+    const marketCapRows = Array.from({ length: 65 }, (_, i) => {
+      const isLast = i === 64;
+      return [
+        {
+          trade_date: engineDate(i + 1),
+          market: "KOSPI",
+          market_cap_million_krw: isLast ? 50000 : 60000
+        },
+        {
+          trade_date: engineDate(i + 1),
+          market: "KOSDAQ",
+          market_cap_million_krw: isLast ? 33333 : 40000
+        }
+      ];
+    }).flat();
+
+    const result = calculateMarketRiskEngine({
+      liquidityRows,
+      creditRows,
+      cmaRows: [],
+      indexRows,
+      flowRows: [],
+      marketCapRows
+    });
+
+    expect(result.signals.some((signal) => signal.signal_type === "credit_to_market_cap_ratio_high")).toBe(true);
   });
 });
 

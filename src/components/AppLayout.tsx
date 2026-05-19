@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Activity, BarChart3, Database, FlaskConical, LineChart, PieChart } from "lucide-react";
 
@@ -9,13 +12,34 @@ interface AppLayoutProps {
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Activity },
-  { href: "/upload", label: "Upload", icon: Database },
+  { href: "/upload", label: "Upload", icon: Database, adminOnly: true },
   { href: "/signals", label: "Signals", icon: LineChart },
   { href: "/portfolio", label: "Portfolio", icon: PieChart },
-  { href: "/backtest", label: "Backtest", icon: FlaskConical }
+  { href: "/backtest", label: "Backtest", icon: FlaskConical, adminOnly: true }
 ];
 
 export function AppLayout({ title, description, children }: AppLayoutProps) {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetch("/api/admin/session")
+      .then((response) => response.json())
+      .then((data: { isAdmin?: boolean }) => {
+        if (isMounted) setIsAdmin(Boolean(data.isAdmin));
+      })
+      .catch(() => {
+        if (isMounted) setIsAdmin(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto max-w-7xl space-y-5 px-3 py-4 sm:px-4 md:p-8">
@@ -33,7 +57,7 @@ export function AppLayout({ title, description, children }: AppLayoutProps) {
             </div>
           </div>
           <nav className="flex gap-1 overflow-x-auto px-3 py-2 text-sm sm:px-4">
-            {navItems.map(({ href, label, icon: Icon }) => (
+            {visibleNavItems.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"

@@ -6,6 +6,7 @@ import type {
   CmaDaily,
   CreditBalanceDaily,
   InvestorFlowDaily,
+  MarketCapDaily,
   MarketIndexDaily,
   MarketLiquidityDaily
 } from "@/types/risk";
@@ -23,13 +24,25 @@ async function selectFromCandidates(tables: string[]) {
   throw new Error(lastErrorMessage);
 }
 
+async function selectOptionalFromCandidates(tables: string[]) {
+  const supabase = getSupabaseAdmin();
+
+  for (const table of tables) {
+    const result = await supabase.from(table).select("*").order("trade_date", { ascending: true });
+    if (!result.error) return result;
+  }
+
+  return { data: [], error: null };
+}
+
 export async function runRiskCalculation(options: { debug?: boolean } = {}) {
-  const [liquidityResult, creditResult, cmaResult, indexResult, flowResult] = await Promise.all([
+  const [liquidityResult, creditResult, cmaResult, indexResult, flowResult, marketCapResult] = await Promise.all([
     selectFromCandidates(["market_liquidity_daily"]),
     selectFromCandidates(["market_credit_balance_daily"]),
     selectFromCandidates(["market_cma_daily"]),
     selectFromCandidates(["market_index_daily"]),
-    selectFromCandidates(["investor_flow_daily"])
+    selectFromCandidates(["investor_flow_daily"]),
+    selectOptionalFromCandidates(["market_cap_daily"])
   ]);
 
   const result = calculateMarketRiskEngine({
@@ -38,6 +51,7 @@ export async function runRiskCalculation(options: { debug?: boolean } = {}) {
     cmaRows: (cmaResult.data ?? []) as CmaDaily[],
     indexRows: (indexResult.data ?? []) as MarketIndexDaily[],
     flowRows: (flowResult.data ?? []) as InvestorFlowDaily[],
+    marketCapRows: (marketCapResult.data ?? []) as MarketCapDaily[],
     debug: options.debug ?? false
   });
 

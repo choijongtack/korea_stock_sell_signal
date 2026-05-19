@@ -1,5 +1,7 @@
 ﻿import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AppLayout } from "@/components/AppLayout";
+import { isAdminMode } from "@/lib/adminAuth";
 import { runBacktestValidation } from "@/lib/backtestEngine";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +47,10 @@ export default async function BacktestPage({
 }: {
   searchParams?: Promise<{ from?: string; to?: string; action?: string; risk_level?: string; regime?: string }>;
 }) {
+  if (!(await isAdminMode())) {
+    redirect("/admin?next=/backtest");
+  }
+
   try {
     const result = await runBacktestValidation();
     const params = (await searchParams) ?? {};
