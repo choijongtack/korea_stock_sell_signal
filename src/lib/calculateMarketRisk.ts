@@ -57,6 +57,48 @@ function latestDate(rows: Array<{ tradeDate: string }>): string | null {
   return rows.length ? sortByDateAsc(rows).at(-1)!.tradeDate : null;
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function movingAverageAt(values: Array<number | null | undefined>, window: number, index: number): number | null {
+  if (index < window - 1) return null;
+  const nums = values.slice(index - window + 1, index + 1);
+  if (nums.some((value) => !isFiniteNumber(value))) return null;
+  return avg(nums as number[]);
+}
+
+function hasVolumeSurge(volume: number | null | undefined, recentVolumes: Array<number | null | undefined>, multiplier = 1.5): boolean {
+  if (!isFiniteNumber(volume)) return false;
+  if (recentVolumes.length < 20) return false;
+  if (recentVolumes.some((value) => !isFiniteNumber(value))) return false;
+  const volumeMa20 = avg(recentVolumes as number[]);
+  return volumeMa20 > 0 && volume > volumeMa20 * multiplier;
+}
+
+function isGenuineKospiMa60Break(indexRows: MarketIndexDaily[], tradeDate: string): boolean {
+  const kospiRows = sortByDateAsc(indexRows).filter((row) => row.market === "KOSPI" && row.tradeDate <= tradeDate);
+  const closes = kospiRows.map((row) => row.close);
+  const latestIndex = kospiRows.length - 1;
+  const current = kospiRows.at(-1)?.close ?? null;
+  const ma60 = movingAverageAt(closes, 60, latestIndex);
+
+  if (!isFiniteNumber(current) || ma60 === null || current >= ma60) return false;
+
+  const recentThreeConfirm =
+    latestIndex >= 2 &&
+    [latestIndex - 2, latestIndex - 1, latestIndex].every((index) => {
+      const close = kospiRows[index]?.close;
+      const rowMa60 = movingAverageAt(closes, 60, index);
+      return isFiniteNumber(close) && rowMa60 !== null && close < rowMa60;
+    });
+
+  const recentVolumes = kospiRows.slice(Math.max(0, kospiRows.length - 20)).map((row) => row.volume);
+  const volumeSurge = hasVolumeSurge(kospiRows.at(-1)?.volume, recentVolumes);
+
+  return recentThreeConfirm || volumeSurge;
+}
+
 function evaluateLiquidity(tradeDate: string, liquidityRows: MarketLiquidityDaily[], createdAt: string): { score: number; signals: SignalEvent[] } {
   const window = inRange(liquidityRows, tradeDate)
     .filter((row) => typeof row.investorDepositMillionKrw === "number")
@@ -222,7 +264,7 @@ function evaluateTechnical(tradeDate: string, indexRows: MarketIndexDaily[], cre
     });
   }
 
-  if (ma60 !== null && current < ma60) {
+  if (ma60 !== null && current < ma60 && isGenuineKospiMa60Break(indexRows, tradeDate)) {
     score += 9;
     signals.push({
       tradeDate,
@@ -340,6 +382,29 @@ function percentile(values: number[], p: number): number | null {
   if (lower === upper) return sorted[lower];
   const weight = rank - lower;
   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+}
+
+function isConfirmedKospiMa60Break(
+  sortedKospi: RiskMarketIndexDaily[],
+  maMap: Map<string, { ma20: number | null; ma60: number | null }>,
+  index: number
+): boolean {
+  const kospi = sortedKospi[index];
+  const ma60 = maMap.get(kospi.trade_date)?.ma60 ?? null;
+  if (!isFiniteNumber(kospi.close) || ma60 === null || kospi.close >= ma60) return false;
+
+  const threeDayConfirm =
+    index >= 2 &&
+    [index - 2, index - 1, index].every((rowIndex) => {
+      const row = sortedKospi[rowIndex];
+      const rowMa60 = maMap.get(row.trade_date)?.ma60 ?? null;
+      return isFiniteNumber(row.close) && rowMa60 !== null && row.close < rowMa60;
+    });
+
+  const recentVolumes = sortedKospi.slice(Math.max(0, index - 19), index + 1).map((row) => row.volume);
+  const volumeSurge = hasVolumeSurge(kospi.volume, recentVolumes);
+
+  return threeDayConfirm || volumeSurge;
 }
 
 export function calculateMarketRiskEngine({
@@ -716,7 +781,7 @@ export function calculateMarketRiskEngine({
         description: "KOSPI가 20일 이동평균선을 하회했습니다."
       });
     }
-    if (ma?.ma60 !== null && ma?.ma60 !== undefined && kospi.close < ma.ma60) {
+    if (ma?.ma60 !== null && ma?.ma60 !== undefined && kospi.close < ma.ma60 && isConfirmedKospiMa60Break(sortedKospi, maMap, i)) {
       technicalScore += 13;
       daySignals.push({
         trade_date: date,

@@ -1,5 +1,5 @@
 // import "server-only";
-import { buildOlderIsoDates, getOldestTradeDate } from "@/lib/syncBackfill";
+import { buildNewerIsoDates, buildOlderIsoDates, getLatestTradeDate, getOldestTradeDate } from "@/lib/syncBackfill";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { ensureKrxStockDailyRows } from "@/lib/syncKrxStockDaily";
 
@@ -375,6 +375,18 @@ export async function syncMarketBreadthBackfill(lastDays = 180, targetMarket: Ma
   if (!oldest) return syncMarketBreadthDaily(lastDays, targetMarket);
 
   return syncMarketBreadthForDates(buildOlderIsoDates(oldest, lastDays), targetMarket);
+}
+
+export async function syncMarketBreadthUpdate(lastDays = 180, targetMarket: MarketKind | "ALL" = "ALL"): Promise<SyncResult> {
+  const supabase = getSupabaseAdmin();
+  const latest = await getLatestTradeDate(
+    supabase,
+    "market_breadth_daily",
+    targetMarket === "ALL" ? {} : { market: targetMarket }
+  );
+  if (!latest) return syncMarketBreadthDaily(lastDays, targetMarket);
+
+  return syncMarketBreadthForDates(buildNewerIsoDates(latest, lastDays), targetMarket);
 }
 
 export async function syncMarketBreadthForDates(dates: string[], targetMarket: MarketKind | "ALL" = "ALL"): Promise<SyncResult> {

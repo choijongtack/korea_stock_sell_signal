@@ -1,9 +1,27 @@
 import { NextResponse } from "next/server";
 import { isAdminMode } from "@/lib/adminAuth";
-import { syncKisIndexBackfill, syncKisIndexDaily } from "@/lib/syncKisOpenApi";
-import { syncKrxMarketCapBackfill, syncKrxMarketCapDaily, syncKrxStocksBackfill, syncKrxStocksDaily } from "@/lib/syncKrxOpenApi";
+import {
+  syncKrxIndexBackfill,
+  syncKrxIndexDaily,
+  syncKrxIndexUpdate,
+  syncKrxMarketCapBackfill,
+  syncKrxMarketCapDaily,
+  syncKrxMarketCapUpdate,
+  syncKrxStocksBackfill,
+  syncKrxStocksDaily,
+  syncKrxStocksUpdate
+} from "@/lib/syncKrxOpenApi";
 
-type SyncType = "krx_index" | "krx_index_backfill" | "krx_stocks" | "krx_stocks_backfill" | "krx_market_cap" | "krx_market_cap_backfill";
+type SyncType =
+  | "krx_index"
+  | "krx_index_backfill"
+  | "krx_index_update"
+  | "krx_stocks"
+  | "krx_stocks_backfill"
+  | "krx_stocks_update"
+  | "krx_market_cap"
+  | "krx_market_cap_backfill"
+  | "krx_market_cap_update";
 
 export async function POST(req: Request) {
   if (!(await isAdminMode())) {
@@ -16,12 +34,16 @@ export async function POST(req: Request) {
     const syncType = body.syncType ?? "krx_index";
 
     if (syncType === "krx_index") {
-      const result = await syncKisIndexDaily(lastDays);
+      const result = await syncKrxIndexDaily(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
     if (syncType === "krx_index_backfill") {
-      const result = await syncKisIndexBackfill(lastDays);
+      const result = await syncKrxIndexBackfill(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+    if (syncType === "krx_index_update") {
+      const result = await syncKrxIndexUpdate(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 
@@ -34,6 +56,10 @@ export async function POST(req: Request) {
       const result = await syncKrxStocksBackfill(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
+    if (syncType === "krx_stocks_update") {
+      const result = await syncKrxStocksUpdate(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
 
     if (syncType === "krx_market_cap") {
       const result = await syncKrxMarketCapDaily(lastDays);
@@ -42,6 +68,10 @@ export async function POST(req: Request) {
 
     if (syncType === "krx_market_cap_backfill") {
       const result = await syncKrxMarketCapBackfill(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+    if (syncType === "krx_market_cap_update") {
+      const result = await syncKrxMarketCapUpdate(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 

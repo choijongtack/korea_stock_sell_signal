@@ -27,19 +27,27 @@ const DATA_TYPE_OPTIONS: UploadDataType[] = [
   "freesis_cma",
   "krx_index",
   "investor_flow",
-  "krx_market_breadth",
-  "krx_market_cap",
-  "krx_stock_daily"
+  "krx_market_cap"
 ];
+// Archived: breadth and stock daily are not part of the current required risk pipeline.
+// Keep the type-specific UI/code paths below so they can be re-enabled later by adding them back to DATA_TYPE_OPTIONS.
 const DATA_TYPE_LABELS: Record<UploadDataType, string> = {
   freesis_market_liquidity: "KOFIA market liquidity",
   freesis_credit_balance: "KOFIA credit balance",
   freesis_cma: "KOFIA CMA",
-  krx_index: "KIS market index",
+  krx_index: "KRX market index",
   investor_flow: "KIS investor flow",
   krx_market_breadth: "KRX market breadth",
   krx_market_cap: "KRX market cap",
   krx_stock_daily: "KRX stock daily"
+};
+type UploadSummaryItem = {
+  key: UploadDataType;
+  table: string;
+  count: number;
+  oldestDate: string | null;
+  latestDate: string | null;
+  error?: string;
 };
 const PREVIEW_LIMIT = 20;
 const INDEX_ORDER: Array<MarketIndexDaily["market"]> = ["KOSPI", "KOSDAQ", "KOSPI200"];
@@ -205,6 +213,8 @@ export function DataUpload() {
   } | null>(null);
   const [isSyncingBreadth, setIsSyncingBreadth] = useState(false);
   const [syncDays, setSyncDays] = useState(180);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [summaryRows, setSummaryRows] = useState<UploadSummaryItem[]>([]);
 
   const hasPreview = previewRows.length > 0;
 
@@ -466,7 +476,7 @@ export function DataUpload() {
           return;
         }
         const result = await upsertKrxStockDaily(normalized.data);
-        setSaveMessage(result.success ? `Saved ${result.count} rows to Supabase Storage CSVs, and regenerated breadth & market cap metrics.` : `Save failed: ${result.message}`);
+        setSaveMessage(result.success ? `Saved ${result.count} rows to Supabase Storage CSVs, and regenerated market cap metrics.` : `Save failed: ${result.message}`);
         return;
       }
 
@@ -493,7 +503,7 @@ export function DataUpload() {
     }
   };
 
-  const handleAutoSyncBreadth = async (market: "ALL" | "KOSPI" | "KOSDAQ" = "ALL", backfill = false) => {
+  const handleAutoSyncBreadth = async (market: "ALL" | "KOSPI" | "KOSDAQ" = "ALL", mode: "daily" | "backfill" | "update" = "daily") => {
     setError("");
     setSaveMessage("");
     setValidationMessage("");
@@ -502,7 +512,7 @@ export function DataUpload() {
       const response = await fetch("/api/admin/sync-market-breadth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lastDays: syncDays, market, backfill })
+        body: JSON.stringify({ lastDays: syncDays, market, backfill: mode === "backfill", update: mode === "update" })
       });
       const result = (await response.json()) as {
         ok: boolean;
@@ -519,7 +529,7 @@ export function DataUpload() {
       const warnings = (result.warnings ?? []).slice(0, 5);
       const warningText = warnings.length > 0 ? ` | warnings: ${warnings.join(" ; ")}` : "";
       setSaveMessage(
-        `Auto sync KRX breadth ${backfill ? "backfill " : ""}(${market}) completed: inserted=${result.inserted ?? 0}, tried=${result.datesTried ?? 0}, succeeded=${result.datesSucceeded ?? 0}${warningText}`
+        `Auto sync KRX breadth ${mode === "backfill" ? "backfill " : mode === "update" ? "update " : ""}(${market}) completed: inserted=${result.inserted ?? 0}, tried=${result.datesTried ?? 0}, succeeded=${result.datesSucceeded ?? 0}${warningText}`
       );
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
@@ -529,7 +539,19 @@ export function DataUpload() {
     }
   };
 
-  const handleAutoSyncKrxData = async (syncType: "krx_index" | "krx_index_backfill" | "krx_investor_flow" | "krx_market_cap" | "krx_market_cap_backfill" | "krx_stocks" | "krx_stocks_backfill") => {
+  const handleAutoSyncKrxData = async (
+    syncType:
+      | "krx_index"
+      | "krx_index_backfill"
+      | "krx_index_update"
+      | "krx_investor_flow"
+      | "krx_market_cap"
+      | "krx_market_cap_backfill"
+      | "krx_market_cap_update"
+      | "krx_stocks"
+      | "krx_stocks_backfill"
+      | "krx_stocks_update"
+  ) => {
     setError("");
     setSaveMessage("");
     setValidationMessage("");
@@ -561,7 +583,7 @@ export function DataUpload() {
     }
   };
 
-  const handleAutoSyncKisData = async (backfill = false) => {
+  const handleAutoSyncKisData = async (mode: "daily" | "backfill" | "update" = "daily") => {
     setError("");
     setSaveMessage("");
     setValidationMessage("");
@@ -570,7 +592,10 @@ export function DataUpload() {
       const response = await fetch("/api/admin/sync-kis-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lastDays: syncDays, syncType: backfill ? "kis_investor_flow_backfill" : "kis_investor_flow" })
+        body: JSON.stringify({
+          lastDays: syncDays,
+          syncType: mode === "backfill" ? "kis_investor_flow_backfill" : mode === "update" ? "kis_investor_flow_update" : "kis_investor_flow"
+        })
       });
       const result = (await response.json()) as {
         ok: boolean;
@@ -583,7 +608,7 @@ export function DataUpload() {
       if (!response.ok || !result.ok) throw new Error(result.error ?? "Auto sync failed");
       const warnings = (result.warnings ?? []).slice(0, 5);
       setSaveMessage(
-        `Auto sync (KIS investor flow${backfill ? " backfill" : ""}) completed: inserted=${result.inserted ?? 0}, tried=${result.datesTried ?? 0}, succeeded=${result.datesSucceeded ?? 0}${warnings.length ? ` | warnings: ${warnings.join(" ; ")}` : ""}`
+        `Auto sync (KIS investor flow${mode === "backfill" ? " backfill" : mode === "update" ? " update" : ""}) completed: inserted=${result.inserted ?? 0}, tried=${result.datesTried ?? 0}, succeeded=${result.datesSucceeded ?? 0}${warnings.length ? ` | warnings: ${warnings.join(" ; ")}` : ""}`
       );
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
@@ -597,10 +622,13 @@ export function DataUpload() {
     syncType:
       | "kofia_liquidity"
       | "kofia_liquidity_backfill"
+      | "kofia_liquidity_update"
       | "kofia_credit_balance"
       | "kofia_credit_balance_backfill"
+      | "kofia_credit_balance_update"
       | "kofia_cma"
       | "kofia_cma_backfill"
+      | "kofia_cma_update"
   ) => {
     setError("");
     setSaveMessage("");
@@ -633,10 +661,30 @@ export function DataUpload() {
     }
   };
 
+  const handleLoadUploadSummary = async () => {
+    setError("");
+    setIsLoadingSummary(true);
+    try {
+      const response = await fetch("/api/admin/upload-summary", { method: "GET" });
+      const result = (await response.json()) as {
+        ok: boolean;
+        rows?: UploadSummaryItem[];
+        error?: string;
+      };
+      if (!response.ok || !result.ok) throw new Error(result.error ?? "Failed to load upload summary");
+      setSummaryRows(result.rows ?? []);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(`Summary load failed: ${message}`);
+    } finally {
+      setIsLoadingSummary(false);
+    }
+  };
+
   return (
     <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
       <h2 className="text-lg font-semibold">Data Upload</h2>
-      <p className="mt-1 text-sm text-slate-500">Upload CSV or Excel and preview data. KIS market index auto sync uses KIS; manual index upload still accepts KRX files.</p>
+      <p className="mt-1 text-sm text-slate-500">Upload CSV or Excel and preview data. Market index auto sync uses KRX.</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <label className="text-sm text-slate-700">
@@ -650,7 +698,42 @@ export function DataUpload() {
             className="w-28 rounded-lg border border-slate-300 px-2 py-1"
           />
         </label>
+        <button
+          type="button"
+          onClick={handleLoadUploadSummary}
+          disabled={isLoadingSummary || isSyncingBreadth || isLoading || isSaving}
+          className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-indigo-300"
+        >
+          {isLoadingSummary ? "Loading summary..." : "Load upload summary"}
+        </button>
       </div>
+
+      {summaryRows.length > 0 && (
+        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium text-slate-600">Item</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-600">Count</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-600">Oldest</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-600">Latest</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-600">Table</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summaryRows.map((row) => (
+                <tr key={row.key} className="border-t border-slate-100">
+                  <td className="px-3 py-2 text-slate-700">{DATA_TYPE_LABELS[row.key]}</td>
+                  <td className="px-3 py-2 text-slate-700">{row.count.toLocaleString()}</td>
+                  <td className="px-3 py-2 text-slate-700">{row.oldestDate ?? "-"}</td>
+                  <td className="px-3 py-2 text-slate-700">{row.latestDate ?? "-"}</td>
+                  <td className="px-3 py-2 text-slate-700">{row.error ? `${row.table} (${row.error})` : row.table}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <label className="text-sm">
@@ -723,11 +806,19 @@ export function DataUpload() {
           </button>
           <button
             type="button"
-            onClick={() => handleAutoSyncBreadth("ALL", true)}
+            onClick={() => handleAutoSyncBreadth("ALL", "backfill")}
             disabled={isSyncingBreadth || isLoading || isSaving}
             className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {isSyncingBreadth ? "Generating..." : "Backfill older breadth ALL"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleAutoSyncBreadth("ALL", "update")}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-blue-300"
+          >
+            {isSyncingBreadth ? "Generating..." : "Update newer breadth ALL"}
           </button>
           <button
             type="button"
@@ -755,7 +846,7 @@ export function DataUpload() {
             disabled={isSyncingBreadth || isLoading || isSaving}
             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-emerald-300"
           >
-            {isSyncingBreadth ? "Syncing..." : "Auto Sync KIS index"}
+            {isSyncingBreadth ? "Syncing..." : "Auto Sync KRX index"}
           </button>
           <button
             type="button"
@@ -763,7 +854,15 @@ export function DataUpload() {
             disabled={isSyncingBreadth || isLoading || isSaving}
             className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {isSyncingBreadth ? "Syncing..." : "Backfill older KIS index"}
+            {isSyncingBreadth ? "Syncing..." : "Backfill older KRX index"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleAutoSyncKrxData("krx_index_update")}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-blue-300"
+          >
+            {isSyncingBreadth ? "Syncing..." : "Update newer KRX index"}
           </button>
         </div>
       )}
@@ -785,6 +884,14 @@ export function DataUpload() {
           >
             {isSyncingBreadth ? "Generating..." : "Backfill older market cap"}
           </button>
+          <button
+            type="button"
+            onClick={() => handleAutoSyncKrxData("krx_market_cap_update")}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-blue-300"
+          >
+            {isSyncingBreadth ? "Generating..." : "Update newer market cap"}
+          </button>
         </div>
       )}
       {selectedType === "krx_stock_daily" && (
@@ -805,6 +912,14 @@ export function DataUpload() {
           >
             {isSyncingBreadth ? "Syncing..." : "Backfill older KRX stock daily"}
           </button>
+          <button
+            type="button"
+            onClick={() => handleAutoSyncKrxData("krx_stocks_update")}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-blue-300"
+          >
+            {isSyncingBreadth ? "Syncing..." : "Update newer KRX stock daily"}
+          </button>
         </div>
       )}
       {selectedType === "investor_flow" && (
@@ -819,11 +934,19 @@ export function DataUpload() {
           </button>
           <button
             type="button"
-            onClick={() => handleAutoSyncKisData(true)}
+            onClick={() => handleAutoSyncKisData("backfill")}
             disabled={isSyncingBreadth || isLoading || isSaving}
             className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {isSyncingBreadth ? "Syncing..." : "Backfill older KIS Investor Flow"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleAutoSyncKisData("update")}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-blue-300"
+          >
+            {isSyncingBreadth ? "Syncing..." : "Update newer KIS Investor Flow"}
           </button>
         </div>
       )}
@@ -850,6 +973,17 @@ export function DataUpload() {
             className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {isSyncingBreadth ? "Syncing..." : `Backfill older ${kofiaSyncLabelByUploadType[selectedType]}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const syncType = kofiaSyncTypeByUploadType[selectedType];
+              if (syncType) void handleAutoSyncKofiaData(`${syncType}_update` as Parameters<typeof handleAutoSyncKofiaData>[0]);
+            }}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-blue-300"
+          >
+            {isSyncingBreadth ? "Syncing..." : `Update newer ${kofiaSyncLabelByUploadType[selectedType]}`}
           </button>
         </div>
       )}

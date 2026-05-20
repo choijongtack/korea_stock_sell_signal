@@ -1,5 +1,5 @@
 import "server-only";
-import { buildOlderDateRange, buildRecentDateRange, getOldestTradeDate } from "@/lib/syncBackfill";
+import { buildNewerDateRange, buildOlderDateRange, buildRecentDateRange, getLatestTradeDate, getOldestTradeDate } from "@/lib/syncBackfill";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 type SyncType = "kofia_liquidity" | "kofia_credit_balance" | "kofia_cma";
@@ -327,6 +327,30 @@ export async function syncKofiaCmaBackfill(lastDays = 180): Promise<SyncSummary>
   const oldest = await getOldestTradeDate(supabase, "market_cma_daily");
   if (!oldest) return syncKofiaCmaDaily(lastDays);
   const { beginYmd, endYmd, datesTried } = buildOlderDateRange(oldest, lastDays);
+  return syncKofiaCmaRange(beginYmd, endYmd, datesTried);
+}
+
+export async function syncKofiaMarketLiquidityUpdate(lastDays = 180): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const latest = await getLatestTradeDate(supabase, "market_liquidity_daily");
+  if (!latest) return syncKofiaMarketLiquidityDaily(lastDays);
+  const { beginYmd, endYmd, datesTried } = buildNewerDateRange(latest, lastDays);
+  return syncKofiaMarketLiquidityRange(beginYmd, endYmd, datesTried);
+}
+
+export async function syncKofiaCreditBalanceUpdate(lastDays = 180): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const latest = await getLatestTradeDate(supabase, "market_credit_balance_daily");
+  if (!latest) return syncKofiaCreditBalanceDaily(lastDays);
+  const { beginYmd, endYmd, datesTried } = buildNewerDateRange(latest, lastDays);
+  return syncKofiaCreditBalanceRange(beginYmd, endYmd, datesTried);
+}
+
+export async function syncKofiaCmaUpdate(lastDays = 180): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const latest = await getLatestTradeDate(supabase, "market_cma_daily");
+  if (!latest) return syncKofiaCmaDaily(lastDays);
+  const { beginYmd, endYmd, datesTried } = buildNewerDateRange(latest, lastDays);
   return syncKofiaCmaRange(beginYmd, endYmd, datesTried);
 }
 

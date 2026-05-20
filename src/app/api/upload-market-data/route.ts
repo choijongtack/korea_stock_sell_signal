@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminMode } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { syncMarketBreadthForDates } from "@/lib/syncMarketBreadth";
 import { syncKrxMarketCapForDates } from "@/lib/syncKrxOpenApi";
 import { uploadKrxDailyCsv, downloadKrxDailyCsv } from "@/lib/supabaseStorage";
 
@@ -286,11 +285,10 @@ export async function POST(req: Request) {
         }
       }
 
-      // Automatically trigger breadth and market cap recalculations for the unique dates present in the payload
+      // Breadth generation is archived for now; stock daily uploads only refresh market cap.
       const uniqueDates = Array.from(new Set(payload.map((row) => row.trade_date)));
       if (uniqueDates.length > 0) {
         try {
-          await syncMarketBreadthForDates(uniqueDates);
           await syncKrxMarketCapForDates(uniqueDates);
         } catch (calcError) {
           console.error("Post-upload aggregation failed:", calcError);

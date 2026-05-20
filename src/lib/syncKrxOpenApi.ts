@@ -1,8 +1,7 @@
 import "server-only";
-import { buildOlderIsoDates, getOldestTradeDate } from "@/lib/syncBackfill";
+import { buildNewerIsoDates, buildOlderIsoDates, getLatestTradeDate, getOldestTradeDate } from "@/lib/syncBackfill";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { ensureKrxStockDailyRows } from "@/lib/syncKrxStockDaily";
-import { syncMarketBreadthForDates } from "@/lib/syncMarketBreadth";
 
 type Market = "KOSPI" | "KOSDAQ" | "KOSPI200";
 
@@ -175,7 +174,7 @@ function findIndexRow(rows: Record<string, unknown>[], market: Market): Record<s
   const wanted: Record<Market, string[]> = {
     KOSPI: ["KOSPI", "코스피"],
     KOSDAQ: ["KOSDAQ", "코스닥"],
-    KOSPI200: ["KOSPI200", "코스피200"]
+    KOSPI200: ["KOSPI200", "코스피200", "코스피 200"]
   };
   const normalizedWanted = wanted[market].map(normalizeIndexName);
 
@@ -225,8 +224,6 @@ function hasActionableFetchWarning(warnings: string[]) {
   );
 }
 
-// Deprecated fallback: admin index sync now uses KIS via syncKisIndexDaily.
-// Keep this for diagnostics if KRX index API access is restored later.
 export async function syncKrxIndexDaily(lastDays = 180): Promise<SyncSummary> {
   const supabase = getSupabaseAdmin();
   const warnings: string[] = [];
@@ -238,6 +235,7 @@ export async function syncKrxIndexDaily(lastDays = 180): Promise<SyncSummary> {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const ymd = toYmd(d);
+    if (isWeekendYmd(ymd)) continue;
     datesTried += 1;
     let dayOk = false;
 
@@ -265,6 +263,102 @@ export async function syncKrxIndexDaily(lastDays = 180): Promise<SyncSummary> {
       payload.push(mapped);
       dayOk = true;
     }
+    if (dayOk) datesSucceeded += 1;
+  }
+
+  if (payload.length > 0) {
+    const { error } = await supabase.from("market_index_daily").upsert(payload, { onConflict: "trade_date,market" });
+    if (error) throw new Error(`market_index_daily upsert failed: ${error.message}`);
+  }
+
+  return { inserted: payload.length, datesTried, datesSucceeded, warnings };
+}
+
+export async function syncKrxIndexBackfill(lastDays = 180): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const oldest = await getOldestTradeDate(supabase, "market_index_daily");
+  if (!oldest) return syncKrxIndexDaily(lastDays);
+
+  const warnings: string[] = [];
+  const payload: Array<Record<string, unknown>> = [];
+  let datesSucceeded = 0;
+  let datesTried = 0;
+  const dates = buildOlderIsoDates(oldest, lastDays);
+
+  for (const dateIso of dates) {
+    const ymd = dateIso.replace(/[^\d]/g, "");
+    if (isWeekendYmd(ymd)) continue;
+    datesTried += 1;
+    let dayOk = false;
+
+    for (const market of ["KOSPI", "KOSDAQ", "KOSPI200"] as const) {
+      const apiId = apiIdForIndex(market);
+      if (!apiId) continue;
+      const { rows, warning } = await fetchRows(apiId, market, ymd, "idx");
+      if (rows.length === 0) {
+        warnings.push(`[${ymd}] ${market} index rows not found.${warning ? ` ${warning}` : ""}`);
+        continue;
+      }
+
+      const candidate = findIndexRow(rows, market);
+      const mapped = candidate ? mapIndexRowToDaily(candidate, market, ymd) : null;
+      if (!mapped) {
+        warnings.push(`[${ymd}] ${market} index row mapping failed. apiId=${apiId}`);
+        continue;
+      }
+
+      payload.push(mapped);
+      dayOk = true;
+    }
+
+    if (dayOk) datesSucceeded += 1;
+  }
+
+  if (payload.length > 0) {
+    const { error } = await supabase.from("market_index_daily").upsert(payload, { onConflict: "trade_date,market" });
+    if (error) throw new Error(`market_index_daily upsert failed: ${error.message}`);
+  }
+
+  return { inserted: payload.length, datesTried, datesSucceeded, warnings };
+}
+
+export async function syncKrxIndexUpdate(lastDays = 180): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const latest = await getLatestTradeDate(supabase, "market_index_daily");
+  if (!latest) return syncKrxIndexDaily(lastDays);
+
+  const warnings: string[] = [];
+  const payload: Array<Record<string, unknown>> = [];
+  let datesSucceeded = 0;
+  let datesTried = 0;
+  const dates = buildNewerIsoDates(latest, lastDays);
+
+  for (const dateIso of dates) {
+    const ymd = dateIso.replace(/[^\d]/g, "");
+    if (isWeekendYmd(ymd)) continue;
+    datesTried += 1;
+    let dayOk = false;
+
+    for (const market of ["KOSPI", "KOSDAQ", "KOSPI200"] as const) {
+      const apiId = apiIdForIndex(market);
+      if (!apiId) continue;
+      const { rows, warning } = await fetchRows(apiId, market, ymd, "idx");
+      if (rows.length === 0) {
+        warnings.push(`[${ymd}] ${market} index rows not found.${warning ? ` ${warning}` : ""}`);
+        continue;
+      }
+
+      const candidate = findIndexRow(rows, market);
+      const mapped = candidate ? mapIndexRowToDaily(candidate, market, ymd) : null;
+      if (!mapped) {
+        warnings.push(`[${ymd}] ${market} index row mapping failed. apiId=${apiId}`);
+        continue;
+      }
+
+      payload.push(mapped);
+      dayOk = true;
+    }
+
     if (dayOk) datesSucceeded += 1;
   }
 
@@ -309,7 +403,6 @@ export async function syncKrxStocksDaily(lastDays = 5): Promise<SyncSummary> {
 
     if (dayOk) {
       datesSucceeded += 1;
-      await syncMarketBreadthForDates([toIso(ymd)], "ALL");
       await syncKrxMarketCapForDates([toIso(ymd)]);
     }
   }
@@ -319,7 +412,7 @@ export async function syncKrxStocksDaily(lastDays = 5): Promise<SyncSummary> {
 
 export async function syncKrxStocksBackfill(lastDays = 200): Promise<SyncSummary> {
   const supabase = getSupabaseAdmin();
-  const oldest = await getOldestTradeDate(supabase, "market_breadth_daily");
+  const oldest = await getOldestTradeDate(supabase, "market_cap_daily");
   if (!oldest) return syncKrxStocksDaily(lastDays);
 
   const warnings: string[] = [];
@@ -346,7 +439,42 @@ export async function syncKrxStocksBackfill(lastDays = 200): Promise<SyncSummary
     if (rowsForDay.length > 0) inserted += rowsForDay.length;
     if (dayOk) {
       datesSucceeded += 1;
-      await syncMarketBreadthForDates([dateIso], "ALL");
+      await syncKrxMarketCapForDates([dateIso]);
+    }
+  }
+
+  return { inserted, datesTried: dates.length, datesSucceeded, warnings };
+}
+
+export async function syncKrxStocksUpdate(lastDays = 200): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const latest = await getLatestTradeDate(supabase, "market_cap_daily");
+  if (!latest) return syncKrxStocksDaily(lastDays);
+
+  const warnings: string[] = [];
+  let inserted = 0;
+  let datesSucceeded = 0;
+  const dates = buildNewerIsoDates(latest, lastDays);
+
+  for (const dateIso of dates) {
+    const ymd = dateIso.replace(/[^\d]/g, "");
+    let dayOk = false;
+    const rowsForDay: Record<string, unknown>[] = [];
+
+    for (const market of ["KOSPI", "KOSDAQ"] as const) {
+      const { rows, warning } = await ensureKrxStockDailyRows(ymd, market);
+      if (rows.length === 0) {
+        warnings.push(`[${ymd}] ${market} stocks rows not found.${warning ? ` ${warning}` : ""}`);
+        continue;
+      }
+
+      rowsForDay.push(...rows);
+      dayOk = true;
+    }
+
+    if (rowsForDay.length > 0) inserted += rowsForDay.length;
+    if (dayOk) {
+      datesSucceeded += 1;
       await syncKrxMarketCapForDates([dateIso]);
     }
   }
@@ -467,21 +595,17 @@ export async function syncKrxMarketCapForDates(dates: string[]): Promise<SyncSum
 
 export async function syncKrxMarketCapBackfill(lastDays = 200): Promise<SyncSummary> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase.from("market_cap_daily").select("trade_date").order("trade_date", { ascending: true }).limit(1);
-  if (error) throw new Error(`market_cap_daily oldest date lookup failed: ${error.message}`);
-
-  const oldest = data?.[0]?.trade_date;
+  const oldest = await getOldestTradeDate(supabase, "market_cap_daily");
   if (!oldest) return syncKrxMarketCapDaily(lastDays);
-
-  const end = new Date(`${oldest}T00:00:00+09:00`);
-  end.setDate(end.getDate() - 1);
-
-  const dates: string[] = [];
-  for (let i = 0; i < lastDays; i += 1) {
-    const d = new Date(end);
-    d.setDate(d.getDate() - i);
-    dates.push(toIso(toYmd(d)));
-  }
-
+  const dates = buildOlderIsoDates(oldest, lastDays);
   return syncKrxMarketCapForDates(dates);
 }
+
+export async function syncKrxMarketCapUpdate(lastDays = 200): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const latest = await getLatestTradeDate(supabase, "market_cap_daily");
+  if (!latest) return syncKrxMarketCapDaily(lastDays);
+  const dates = buildNewerIsoDates(latest, lastDays);
+  return syncKrxMarketCapForDates(dates);
+}
+

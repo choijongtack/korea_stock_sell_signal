@@ -5,19 +5,25 @@ import {
   syncKofiaAllBackfill,
   syncKofiaCmaBackfill,
   syncKofiaCmaDaily,
+  syncKofiaCmaUpdate,
   syncKofiaCreditBalanceBackfill,
   syncKofiaCreditBalanceDaily,
+  syncKofiaCreditBalanceUpdate,
   syncKofiaMarketLiquidityBackfill,
-  syncKofiaMarketLiquidityDaily
+  syncKofiaMarketLiquidityDaily,
+  syncKofiaMarketLiquidityUpdate
 } from "@/lib/syncKofiaOpenApi";
 
 type SyncType =
   | "kofia_liquidity"
   | "kofia_liquidity_backfill"
+  | "kofia_liquidity_update"
   | "kofia_credit_balance"
   | "kofia_credit_balance_backfill"
+  | "kofia_credit_balance_update"
   | "kofia_cma"
   | "kofia_cma_backfill"
+  | "kofia_cma_update"
   | "kofia_all"
   | "kofia_all_backfill";
 
@@ -40,6 +46,10 @@ export async function POST(req: Request) {
       const result = await syncKofiaMarketLiquidityBackfill(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
+    if (syncType === "kofia_liquidity_update") {
+      const result = await syncKofiaMarketLiquidityUpdate(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
 
     if (syncType === "kofia_credit_balance") {
       const result = await syncKofiaCreditBalanceDaily(lastDays);
@@ -50,6 +60,10 @@ export async function POST(req: Request) {
       const result = await syncKofiaCreditBalanceBackfill(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
+    if (syncType === "kofia_credit_balance_update") {
+      const result = await syncKofiaCreditBalanceUpdate(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
 
     if (syncType === "kofia_cma") {
       const result = await syncKofiaCmaDaily(lastDays);
@@ -58,6 +72,10 @@ export async function POST(req: Request) {
 
     if (syncType === "kofia_cma_backfill") {
       const result = await syncKofiaCmaBackfill(lastDays);
+      return NextResponse.json({ ok: true, syncType, ...result });
+    }
+    if (syncType === "kofia_cma_update") {
+      const result = await syncKofiaCmaUpdate(lastDays);
       return NextResponse.json({ ok: true, syncType, ...result });
     }
 

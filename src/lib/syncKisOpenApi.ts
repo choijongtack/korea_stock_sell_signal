@@ -1,5 +1,5 @@
 import "server-only";
-import { buildOlderDateRange, getOldestTradeDate } from "@/lib/syncBackfill";
+import { buildNewerDateRange, buildOlderDateRange, getLatestTradeDate, getOldestTradeDate } from "@/lib/syncBackfill";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 type KisMarket = "KOSPI" | "KOSDAQ";
@@ -224,6 +224,8 @@ async function fetchInvestorFlowRows(market: KisMarket, beginYmd: string, endYmd
   return { rows: [], warning: `${market} KIS investor flow request failed after retries.` };
 }
 
+// Deprecated: index sync is intentionally handled by KRX OpenAPI.
+// Keep the KIS index helpers only as a fallback reference; do not wire them into admin sync routes.
 async function fetchIndexRows(market: KisIndexMarket, beginYmd: string, endYmd: string): Promise<{ rows: KisRecord[]; warning?: string }> {
   const appKey = getAppKey();
   const appSecret = getAppSecret();
@@ -357,12 +359,14 @@ async function syncKisIndexRange(saveBeginYmd: string, endYmd: string, datesTrie
   return { inserted: payload.length, datesTried, datesSucceeded: datesSucceeded.size, warnings };
 }
 
+// Deprecated: use syncKrxIndexDaily from syncKrxOpenApi.ts for market_index_daily.
 export async function syncKisIndexDaily(lastDays = 180): Promise<SyncSummary> {
   const { beginYmd: saveBeginYmd, endYmd, datesTried } = buildDateRange(lastDays);
   const { beginYmd: fetchBeginYmd } = buildDateRange(lastDays, 10);
   return syncKisIndexRange(saveBeginYmd, endYmd, datesTried, fetchBeginYmd);
 }
 
+// Deprecated: use syncKrxIndexBackfill from syncKrxOpenApi.ts for market_index_daily.
 export async function syncKisIndexBackfill(lastDays = 180): Promise<SyncSummary> {
   const supabase = getSupabaseAdmin();
   const oldest = await getOldestTradeDate(supabase, "market_index_daily");
@@ -417,5 +421,13 @@ export async function syncKisInvestorFlowBackfill(lastDays = 180): Promise<SyncS
   const oldest = await getOldestTradeDate(supabase, "investor_flow_daily");
   if (!oldest) return syncKisInvestorFlowDaily(lastDays);
   const { beginYmd, endYmd, datesTried } = buildOlderDateRange(oldest, lastDays);
+  return syncKisInvestorFlowRange(beginYmd, endYmd, datesTried);
+}
+
+export async function syncKisInvestorFlowUpdate(lastDays = 180): Promise<SyncSummary> {
+  const supabase = getSupabaseAdmin();
+  const latest = await getLatestTradeDate(supabase, "investor_flow_daily");
+  if (!latest) return syncKisInvestorFlowDaily(lastDays);
+  const { beginYmd, endYmd, datesTried } = buildNewerDateRange(latest, lastDays);
   return syncKisInvestorFlowRange(beginYmd, endYmd, datesTried);
 }

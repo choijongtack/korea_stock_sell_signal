@@ -200,3 +200,53 @@ describe("credit to market cap ratio", () => {
   });
 });
 
+describe("KOSPI 60-day MA whipsaw filter", () => {
+  const engineDate = (day: number): string => {
+    const d = new Date(Date.UTC(2026, 0, day));
+    return d.toISOString().slice(0, 10);
+  };
+
+  const createEngineRows = (closes: number[], volumes?: number[]) => ({
+    liquidityRows: closes.map((_, i) => ({
+      trade_date: engineDate(i + 1),
+      investor_deposit_million_krw: 10000
+    })),
+    creditRows: closes.map((_, i) => ({
+      trade_date: engineDate(i + 1),
+      credit_loan_million_krw: 1000,
+      total_credit_million_krw: 1100
+    })),
+    cmaRows: [],
+    flowRows: [],
+    indexRows: closes.map((close, i) => ({
+      trade_date: engineDate(i + 1),
+      market: "KOSPI",
+      close,
+      volume: volumes?.[i] ?? 1000
+    }))
+  });
+
+  it("does not emit kospi_below_ma60 on a one-day break without volume surge", () => {
+    const rows = createEngineRows([...Array.from({ length: 60 }, () => 100), 99]);
+    const result = calculateMarketRiskEngine(rows);
+
+    expect(result.signals.some((signal) => signal.signal_type === "kospi_below_ma60")).toBe(false);
+  });
+
+  it("emits kospi_below_ma60 after three consecutive breaks", () => {
+    const rows = createEngineRows([...Array.from({ length: 60 }, () => 100), 99, 98, 97]);
+    const result = calculateMarketRiskEngine(rows);
+
+    expect(result.signals.some((signal) => signal.signal_type === "kospi_below_ma60")).toBe(true);
+  });
+
+  it("emits kospi_below_ma60 on a one-day break with 150 percent volume surge", () => {
+    const closes = [...Array.from({ length: 60 }, () => 100), 99];
+    const volumes = [...Array.from({ length: 60 }, () => 1000), 2000];
+    const rows = createEngineRows(closes, volumes);
+    const result = calculateMarketRiskEngine(rows);
+
+    expect(result.signals.some((signal) => signal.signal_type === "kospi_below_ma60")).toBe(true);
+  });
+});
+

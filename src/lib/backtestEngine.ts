@@ -187,7 +187,7 @@ function negativeRate(values: Array<number | null>): number | null {
 async function persistBacktestResults(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   riskRows: BacktestValidationRow[],
-  signalRows: Array<{
+  _signalRows: Array<{
     trade_date: string;
     signal_type: string;
     severity: string;
@@ -198,6 +198,9 @@ async function persistBacktestResults(
     market_return_20d: number | null;
   }>
 ): Promise<number> {
+  // Persist only compact risk-score validation rows.
+  // Signal-event level rows are summarized in-memory/UI and are not persisted
+  // to avoid excessive backtest_results growth.
   const toRiskPayload = riskRows.map((r) => ({
     source_type: "market_risk_daily",
     source_id: null,
@@ -209,67 +212,35 @@ async function persistBacktestResults(
     signal_type: null,
     severity: null,
     entry_price: r.entry_price,
-    exit_price_1d: r.exit_price_1d,
-    exit_price_5d: r.exit_price_5d,
-    exit_price_10d: r.exit_price_10d,
-    exit_price_20d: r.exit_price_20d,
-    market_return_1d: r.market_return_1d,
-    market_return_5d: r.market_return_5d,
-    market_return_10d: r.market_return_10d,
-    market_return_20d: r.market_return_20d,
-    strategy_return_1d: r.strategy_return_1d,
-    strategy_return_5d: r.strategy_return_5d,
-    strategy_return_10d: r.strategy_return_10d,
-    strategy_return_20d: r.strategy_return_20d,
-    is_success_1d: r.is_success_1d,
-    is_success_5d: r.is_success_5d,
-    is_success_10d: r.is_success_10d,
-    is_success_20d: r.is_success_20d
-  }));
-
-  const toSignalPayload = signalRows.map((r) => ({
-    source_type: "signal_event",
-    source_id: null,
-    trade_date: r.trade_date,
-    score: null,
-    risk_level: null,
-    market_regime: r.market_regime,
-    action: null,
-    signal_type: r.signal_type,
-    severity: r.severity,
-    entry_price: null,
     exit_price_1d: null,
-    exit_price_5d: null,
+    exit_price_5d: r.exit_price_5d,
     exit_price_10d: null,
-    exit_price_20d: null,
-    market_return_1d: r.market_return_1d,
+    exit_price_20d: r.exit_price_20d,
+    market_return_1d: null,
     market_return_5d: r.market_return_5d,
-    market_return_10d: r.market_return_10d,
+    market_return_10d: null,
     market_return_20d: r.market_return_20d,
     strategy_return_1d: null,
-    strategy_return_5d: null,
+    strategy_return_5d: r.strategy_return_5d,
     strategy_return_10d: null,
-    strategy_return_20d: null,
+    strategy_return_20d: r.strategy_return_20d,
     is_success_1d: null,
-    is_success_5d: null,
+    is_success_5d: r.is_success_5d,
     is_success_10d: null,
-    is_success_20d: null
+    is_success_20d: r.is_success_20d
   }));
-
-  const allPayload = [...toRiskPayload, ...toSignalPayload];
+  const allPayload = [...toRiskPayload];
   if (allPayload.length === 0) return 0;
 
   const riskDates = [...new Set(riskRows.map((r) => r.trade_date))];
-  const signalDates = [...new Set(signalRows.map((r) => r.trade_date))];
 
   if (riskDates.length > 0) {
     const delRisk = await supabase.from("backtest_results").delete().eq("source_type", "market_risk_daily").in("trade_date", riskDates);
     if (delRisk.error) throw new Error(`Backtest save failed(delete risk rows): ${delRisk.error.message}`);
   }
-  if (signalDates.length > 0) {
-    const delSignal = await supabase.from("backtest_results").delete().eq("source_type", "signal_event").in("trade_date", signalDates);
-    if (delSignal.error) throw new Error(`Backtest save failed(delete signal rows): ${delSignal.error.message}`);
-  }
+  // Cleanup legacy bulky signal_event persistence rows.
+  const delLegacySignal = await supabase.from("backtest_results").delete().eq("source_type", "signal_event");
+  if (delLegacySignal.error) throw new Error(`Backtest save failed(delete legacy signal rows): ${delLegacySignal.error.message}`);
 
   const chunkSize = 1000;
   let inserted = 0;
