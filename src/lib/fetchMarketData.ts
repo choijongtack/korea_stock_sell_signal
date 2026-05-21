@@ -139,7 +139,12 @@ export async function fetchMarketCmaDaily(): Promise<MarketCmaDaily[]> {
   }));
 }
 
-export async function fetchLatestMarketRiskDaily(): Promise<(Pick<MarketRiskScore, "totalScore" | "riskLevel"> & { summary?: string | null }) | null> {
+export async function fetchLatestMarketRiskDaily(): Promise<
+  (Pick<MarketRiskScore, "tradeDate" | "totalScore" | "riskLevel" | "liquidityScore" | "leverageScore" | "flowScore" | "technicalScore"> & {
+    cmaScore?: number;
+    summary?: string | null;
+  }) | null
+> {
   let supabase;
   try {
     supabase = getSupabaseReadClient();
@@ -149,7 +154,7 @@ export async function fetchLatestMarketRiskDaily(): Promise<(Pick<MarketRiskScor
   }
   const { data, error } = await supabase
     .from("market_risk_daily")
-    .select("total_score,risk_level,summary,trade_date")
+    .select("trade_date,total_score,risk_level,liquidity_score,leverage_score,flow_score,technical_score,cma_score,summary")
     .order("trade_date", { ascending: false })
     .limit(1);
 
@@ -162,6 +167,12 @@ export async function fetchLatestMarketRiskDaily(): Promise<(Pick<MarketRiskScor
   if (!row) return null;
 
   return {
+    tradeDate: row.trade_date,
+    liquidityScore: row.liquidity_score ?? 0,
+    leverageScore: row.leverage_score ?? 0,
+    flowScore: row.flow_score ?? 0,
+    technicalScore: row.technical_score ?? 0,
+    cmaScore: row.cma_score ?? 0,
     totalScore: row.total_score ?? 0,
     riskLevel: row.risk_level ?? "stable",
     summary: row.summary ?? null

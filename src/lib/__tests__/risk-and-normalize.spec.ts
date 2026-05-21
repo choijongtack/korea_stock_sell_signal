@@ -200,6 +200,56 @@ describe("credit to market cap ratio", () => {
   });
 });
 
+describe("market top fragility scoring", () => {
+  const engineDate = (day: number): string => {
+    const d = new Date(Date.UTC(2026, 0, day));
+    return d.toISOString().slice(0, 10);
+  };
+
+  it("raises risk before a trend break when credit is overheated and foreigners sell", () => {
+    const rowCount = 65;
+    const liquidityRows = Array.from({ length: rowCount }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      investor_deposit_million_krw: 3900
+    }));
+    const creditRows = Array.from({ length: rowCount }, (_, i) => {
+      const creditLoan = i < rowCount - 20 ? 1000 : 1000 + ((i - (rowCount - 20) + 1) * 75) / 20;
+      return {
+        trade_date: engineDate(i + 1),
+        credit_loan_million_krw: creditLoan,
+        total_credit_million_krw: creditLoan + 100
+      };
+    });
+    const indexRows = Array.from({ length: rowCount }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      market: "KOSPI",
+      close: 3000 + i
+    }));
+    const flowRows = Array.from({ length: rowCount }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      market: "KOSPI",
+      foreign_net_buy: i >= rowCount - 5 ? -100 : 100,
+      institution_net_buy: 0,
+      individual_net_buy: i >= rowCount - 5 ? 100 : -100
+    }));
+
+    const result = calculateMarketRiskEngine({
+      liquidityRows,
+      creditRows,
+      cmaRows: [],
+      indexRows,
+      flowRows
+    });
+    const latestRisk = result.risks.at(-1);
+
+    expect(latestRisk?.total_score).toBeGreaterThanOrEqual(60);
+    expect(latestRisk?.risk_level).toBe("danger");
+    expect(result.signals.some((signal) => signal.signal_type === "liquidity_quality_credit_to_deposit_high")).toBe(true);
+    expect(result.signals.some((signal) => signal.signal_type === "credit_loan_acceleration_near_high")).toBe(true);
+    expect(result.signals.some((signal) => signal.signal_type === "foreigner_sell_credit_high_divergence")).toBe(true);
+  });
+});
+
 describe("KOSPI 60-day MA whipsaw filter", () => {
   const engineDate = (day: number): string => {
     const d = new Date(Date.UTC(2026, 0, day));

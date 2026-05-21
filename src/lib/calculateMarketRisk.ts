@@ -577,6 +577,20 @@ export function calculateMarketRiskEngine({
         ? (creditLoan / liq.investor_deposit_million_krw) * 100
         : null;
 
+    if (creditToDepositRatio !== null && creditToDepositRatio >= 25) {
+      const scoreDelta = creditToDepositRatio >= 30 ? 12 : 10;
+      liquidityScore += scoreDelta;
+      daySignals.push({
+        trade_date: date,
+        signal_type: "liquidity_quality_credit_to_deposit_high",
+        severity: creditToDepositRatio >= 30 ? "warning" : "caution",
+        score_delta: scoreDelta,
+        title: "유동성 질 악화",
+        description: `신용융자/예탁금 비율이 ${creditToDepositRatio.toFixed(1)}%로, 대기자금 대비 레버리지 부담이 높은 상태입니다.`
+      });
+    }
+    liquidityScore = Math.min(25, liquidityScore);
+
     // 1) Existing sharp decline condition
     const creditLoan10dChange =
       creditLoan !== null && prev10Credit !== null && prev10Credit !== 0 ? ((creditLoan - prev10Credit) / prev10Credit) * 100 : null;
@@ -644,6 +658,18 @@ export function calculateMarketRiskEngine({
         score_delta: 5,
         title: "신용융자 20거래일 상승",
         description: `신용융자가 20거래일 전 대비 ${creditLoan20dChange.toFixed(1)}% 증가했습니다.`
+      });
+    }
+
+    if (creditLoanToHighRatio !== null && creditLoan20dChange !== null && creditLoanToHighRatio >= 98 && creditLoan20dChange >= 5) {
+      leverageScore += 10;
+      daySignals.push({
+        trade_date: date,
+        signal_type: "credit_loan_acceleration_near_high",
+        severity: "warning",
+        score_delta: 10,
+        title: "신용융자 고점권 가속",
+        description: `신용융자가 60일 고점 대비 ${creditLoanToHighRatio.toFixed(1)}% 수준이고 20거래일 전 대비 ${creditLoan20dChange.toFixed(1)}% 증가했습니다.`
       });
     }
 
@@ -753,6 +779,24 @@ export function calculateMarketRiskEngine({
         description: "외국인이 KOSPI 기준 5거래일 연속 순매도를 기록했습니다."
       });
     }
+    const foreign3 = foreign5.slice(-3);
+    if (
+      foreign3.length === 3 &&
+      foreign3.every((v) => v !== null && v < 0) &&
+      creditLoanToHighRatio !== null &&
+      creditLoanToHighRatio >= 97
+    ) {
+      flowScore += 13;
+      daySignals.push({
+        trade_date: date,
+        signal_type: "foreigner_sell_credit_high_divergence",
+        severity: "danger",
+        score_delta: 13,
+        title: "외국인 매도와 신용 고점권 괴리",
+        description: `외국인이 KOSPI 기준 3거래일 연속 순매도하는 동안 신용융자는 60일 고점 대비 ${creditLoanToHighRatio.toFixed(1)}% 수준을 유지했습니다.`
+      });
+    }
+
     const todayFlow = flowByDate.get(date);
     const foreignToday = todayFlow?.foreign;
     const instToday = todayFlow?.institution;
@@ -767,7 +811,7 @@ export function calculateMarketRiskEngine({
         description: "외국인과 기관이 같은 날 동시에 순매도했습니다."
       });
     }
-    flowScore = Math.min(20, flowScore);
+    flowScore = Math.min(25, flowScore);
 
     const ma = maMap.get(date);
     if (ma?.ma20 !== null && ma?.ma20 !== undefined && kospi.close < ma.ma20) {
