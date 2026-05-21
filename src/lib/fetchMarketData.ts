@@ -57,6 +57,30 @@ export async function fetchMarketIndexDaily(): Promise<MarketIndexDaily[]> {
   }));
 }
 
+export async function fetchLatestIndexTradeDate(market = "KOSPI"): Promise<string | null> {
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("market_index_daily")
+    .select("trade_date")
+    .eq("market", market)
+    .order("trade_date", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error("Failed to fetch market_index_daily latest trade_date:", error.message);
+    return null;
+  }
+
+  return data?.[0]?.trade_date ?? null;
+}
+
 export async function fetchInvestorFlowDaily(): Promise<InvestorFlowDaily[]> {
   let supabase;
   try {

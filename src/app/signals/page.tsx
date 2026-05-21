@@ -3,13 +3,14 @@ import { RiskAiReport } from "@/components/RiskAiReport";
 import { RiskSummaryCard } from "@/components/RiskSummaryCard";
 import { SignalChecklist } from "@/components/SignalChecklist";
 import { generateRiskReport } from "@/lib/aiRiskReport";
-import { fetchLatestMarketRiskDaily, fetchLatestSignalEvents } from "@/lib/fetchMarketData";
+import { fetchLatestIndexTradeDate, fetchLatestMarketRiskDaily, fetchLatestSignalEvents } from "@/lib/fetchMarketData";
 
 export const dynamic = "force-dynamic";
 
 export default async function SignalsPage() {
   const latestRisk = await fetchLatestMarketRiskDaily();
   const latestSignals = await fetchLatestSignalEvents();
+  const latestIndexTradeDate = await fetchLatestIndexTradeDate("KOSPI");
   const risk = latestRisk ?? {
     tradeDate: null,
     totalScore: 0,
@@ -21,7 +22,7 @@ export default async function SignalsPage() {
     cmaScore: 0,
     summary: "저장된 위험 점수 데이터가 없습니다."
   };
-  const report = await generateRiskReport({ ...risk, signals: latestSignals });
+  const report = await generateRiskReport({ ...risk, signals: latestSignals, reportVersionDate: latestIndexTradeDate });
 
   return (
     <AppLayout title="시그널" description="저장된 최신 위험 점수와 신호를 확인합니다.">
