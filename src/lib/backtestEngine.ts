@@ -120,12 +120,51 @@ function scoreFromRiskRow(row: RiskDailyRow): number {
   return total ?? risk ?? 0;
 }
 
-export function deriveActionFromRisk(row: RiskDailyRow, _marketRow?: MarketPriceRow): ActionSignal {
+function dateOnly(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const compact = raw.replace(/[^\d]/g, "");
+  if (compact.length >= 8) return `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}`;
+  return raw.slice(0, 10);
+}
+
+function rollingAverage(values: Array<number | null>, endIdx: number, window: number): number | null {
+  if (endIdx - window + 1 < 0) return null;
+  let sum = 0;
+  let count = 0;
+  for (let i = endIdx - window + 1; i <= endIdx; i += 1) {
+    const v = values[i];
+    if (v === null) return null;
+    sum += v;
+    count += 1;
+  }
+  return count === window ? sum / count : null;
+}
+
+export function deriveActionFromRisk(row: RiskDailyRow, marketRow?: MarketPriceRow): ActionSignal {
   const score = scoreFromRiskRow(row);
-  if (score >= 85) return "sell";
+  const riskLevel = String(row.risk_level ?? "").toLowerCase();
+  const regime = deriveMarketRegime(marketRow);
+  const close = marketRow?.close ?? null;
+  const ma20 = marketRow?.ma20 ?? null;
+  const isBelowMa20 = close !== null && ma20 !== null ? close < ma20 : false;
+  const weakDown = regime === "downtrend" || isBelowMa20;
+
+  // 3rd tuning:
+  // - Keep score-based backbone.
+  // - Use risk_level + weakDown to emit practical reduce samples in danger zones.
+  if (score >= 90) return weakDown ? "sell" : "reduce";
+  if (score >= 85) return weakDown ? "sell" : "reduce";
   if (score >= 75) return "reduce";
-  if (score >= 60) return "watch";
-  if (score >= 40) return "hold";
+
+  if (riskLevel.includes("danger")) {
+    if (weakDown && score >= 60) return "reduce";
+    if (score >= 65) return "watch";
+    return "hold";
+  }
+
+  if (score >= 65) return weakDown ? "watch" : "hold";
+  if (score >= 45) return "hold";
   return "buy";
 }
 
@@ -135,9 +174,23 @@ export function deriveMarketRegime(marketRow?: MarketPriceRow): MarketRegime {
   const ma20 = asFiniteNumber(marketRow.ma20);
   const ma60 = asFiniteNumber(marketRow.ma60);
 
-  if (close === null || ma20 === null || ma60 === null) return "neutral";
-  if (close > ma20 && ma20 > ma60) return "uptrend";
-  if (close < ma20 && ma20 < ma60) return "downtrend";
+  if (close !== null && ma20 !== null && ma60 !== null) {
+    if (close > ma20 && ma20 > ma60) return "uptrend";
+    if (close < ma20 && ma20 < ma60) return "downtrend";
+  }
+
+  // Fallback regime heuristic when MA data is partially missing or flat.
+  if (close !== null && ma20 !== null) {
+    const dev = (close - ma20) / ma20;
+    if (dev >= 0.015) return "uptrend";
+    if (dev <= -0.015) return "downtrend";
+  }
+
+  if (ma20 !== null && ma60 !== null) {
+    const slope = (ma20 - ma60) / ma60;
+    if (slope >= 0.01) return "uptrend";
+    if (slope <= -0.01) return "downtrend";
+  }
   return "neutral";
 }
 
@@ -282,9 +335,9 @@ export async function runBacktestValidation(): Promise<BacktestResult> {
   const riskRows = riskRowsRaw ?? [];
   const signalRows = (signalRes.data ?? []) as SignalEventRow[];
 
-  const marketRows = ((indexRes.data ?? []) as Array<Record<string, unknown>>)
+  const marketRowsBase = ((indexRes.data ?? []) as Array<Record<string, unknown>>)
     .map((row) => ({
-      trade_date: String(row.trade_date ?? ""),
+      trade_date: dateOnly(row.trade_date),
       market: String(row.market ?? "KOSPI"),
       close: asFiniteNumber(row.close),
       ma20: asFiniteNumber(row.ma20),
@@ -292,23 +345,35 @@ export async function runBacktestValidation(): Promise<BacktestResult> {
     }))
     .filter((row) => row.trade_date && row.close !== null) as MarketPriceRow[];
 
+  const closes = marketRowsBase.map((r) => asFiniteNumber(r.close));
+  const marketRows = marketRowsBase.map((row, idx) => {
+    const ma20Computed = rollingAverage(closes, idx, 20);
+    const ma60Computed = rollingAverage(closes, idx, 60);
+    return {
+      ...row,
+      ma20: row.ma20 ?? ma20Computed,
+      ma60: row.ma60 ?? ma60Computed
+    };
+  });
+
   if (marketRows.length === 0) {
     throw new Error("Backtest load failed: market_index_daily has no valid KOSPI close rows.");
   }
 
-  const marketByDate = new Map(marketRows.map((row) => [row.trade_date, row]));
+  const marketByDate = new Map(marketRows.map((row) => [dateOnly(row.trade_date), row]));
   const rows: BacktestValidationRow[] = [];
   let skippedRows = 0;
 
   for (const risk of riskRows) {
-    const marketRow = marketByDate.get(risk.trade_date);
+    const riskDate = dateOnly(risk.trade_date);
+    const marketRow = marketByDate.get(riskDate);
     if (!marketRow || marketRow.close === null) {
       skippedRows += 1;
       continue;
     }
 
     const entryPrice = marketRow.close;
-    const exits = getForwardReturns(marketRows, risk.trade_date, HORIZONS);
+    const exits = getForwardReturns(marketRows, riskDate, HORIZONS);
 
     const calcOne = (h: Horizon) => {
       const exit = exits[h];
@@ -332,7 +397,7 @@ export async function runBacktestValidation(): Promise<BacktestResult> {
     const action = deriveActionFromRisk(risk, marketRow);
 
     rows.push({
-      trade_date: risk.trade_date,
+      trade_date: riskDate,
       score: scoreFromRiskRow(risk),
       risk_level: String(risk.risk_level ?? "unknown"),
       market_regime: deriveMarketRegime(marketRow),
@@ -382,9 +447,10 @@ export async function runBacktestValidation(): Promise<BacktestResult> {
 
   const signalRowsWithForward = signalRows
     .map((s) => {
-      const m = marketByDate.get(String(s.trade_date ?? ""));
+      const sDate = dateOnly(s.trade_date);
+      const m = marketByDate.get(sDate);
       if (!m || m.close === null) return null;
-      const exits = getForwardReturns(marketRows, String(s.trade_date), HORIZONS);
+      const exits = getForwardReturns(marketRows, sDate, HORIZONS);
 
       const m1 = exits[1] === null ? null : toPct(calculateMarketReturn(m.close, exits[1]));
       const m5 = exits[5] === null ? null : toPct(calculateMarketReturn(m.close, exits[5]));
@@ -392,7 +458,7 @@ export async function runBacktestValidation(): Promise<BacktestResult> {
       const m20 = exits[20] === null ? null : toPct(calculateMarketReturn(m.close, exits[20]));
 
       return {
-        trade_date: String(s.trade_date),
+        trade_date: sDate,
         signal_type: String(s.signal_type ?? "unknown"),
         severity: String(s.severity ?? "unknown"),
         market_regime: deriveMarketRegime(m),
@@ -485,7 +551,7 @@ export async function runBacktestValidation(): Promise<BacktestResult> {
       riskRows: riskRows.length,
       evaluatedRows: rows.length,
       skippedRows,
-      actionRule: "score>=85 sell, >=75 reduce, >=60 watch, >=40 hold, <40 buy",
+      actionRule: "score>=90 sell/reduce, >=85 sell/reduce, >=75 reduce, danger+weakDown(>=60) reduce, >=65 watch/hold, >=45 hold, <45 buy",
       signalEventRows: signalRowsWithForward.length,
       totalMarketDays,
       marketRiskDays,
