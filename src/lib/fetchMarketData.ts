@@ -2,6 +2,33 @@ import "server-only";
 import { getSupabaseReadClient } from "./supabaseAdmin";
 import type { InvestorFlowDaily, MarketCmaDaily, MarketCreditBalanceDaily, MarketIndexDaily, MarketLiquidityDaily, MarketRiskScore, SignalEvent } from "@/types/market";
 
+const SUPABASE_PAGE_SIZE = 1000;
+
+type PagedQueryResult<T> = {
+  data: T[] | null;
+  error: { message: string } | null;
+};
+
+async function fetchPagedRows<T>(makeQuery: (from: number, to: number) => PromiseLike<PagedQueryResult<T>>): Promise<PagedQueryResult<T>> {
+  const rows: T[] = [];
+
+  for (let from = 0; ; from += SUPABASE_PAGE_SIZE) {
+    const to = from + SUPABASE_PAGE_SIZE - 1;
+    const { data, error } = await makeQuery(from, to);
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    const pageRows = data ?? [];
+    rows.push(...pageRows);
+
+    if (pageRows.length < SUPABASE_PAGE_SIZE) {
+      return { data: rows, error: null };
+    }
+  }
+}
+
 export async function fetchMarketLiquidityDaily(): Promise<MarketLiquidityDaily[]> {
   let supabase;
   try {
@@ -10,7 +37,9 @@ export async function fetchMarketLiquidityDaily(): Promise<MarketLiquidityDaily[
     console.error(error);
     return [];
   }
-  const { data, error } = await supabase.from("market_liquidity_daily").select("*").order("trade_date", { ascending: true });
+  const { data, error } = await fetchPagedRows((from, to) =>
+    supabase.from("market_liquidity_daily").select("*").order("trade_date", { ascending: true }).range(from, to)
+  );
 
   if (error) {
     console.error("Failed to fetch market_liquidity_daily:", error.message);
@@ -35,7 +64,9 @@ export async function fetchMarketIndexDaily(): Promise<MarketIndexDaily[]> {
     console.error(error);
     return [];
   }
-  const { data, error } = await supabase.from("market_index_daily").select("*").order("trade_date", { ascending: true });
+  const { data, error } = await fetchPagedRows((from, to) =>
+    supabase.from("market_index_daily").select("*").order("trade_date", { ascending: true }).range(from, to)
+  );
 
   if (error) {
     console.error("Failed to fetch market_index_daily:", error.message);
@@ -90,10 +121,13 @@ export async function fetchInvestorFlowDaily(): Promise<InvestorFlowDaily[]> {
     return [];
   }
 
-  const wide = await supabase
-    .from("investor_flow_daily")
-    .select("trade_date,market,foreign_net_buy,institution_net_buy,individual_net_buy,program_net_buy,created_at")
-    .order("trade_date", { ascending: true });
+  const wide = await fetchPagedRows((from, to) =>
+    supabase
+      .from("investor_flow_daily")
+      .select("trade_date,market,foreign_net_buy,institution_net_buy,individual_net_buy,program_net_buy,created_at")
+      .order("trade_date", { ascending: true })
+      .range(from, to)
+  );
 
   if (!wide.error) {
     return (wide.data ?? []).map((row) => ({
@@ -119,7 +153,9 @@ export async function fetchMarketCreditBalanceDaily(): Promise<MarketCreditBalan
     console.error(error);
     return [];
   }
-  const { data, error } = await supabase.from("market_credit_balance_daily").select("*").order("trade_date", { ascending: true });
+  const { data, error } = await fetchPagedRows((from, to) =>
+    supabase.from("market_credit_balance_daily").select("*").order("trade_date", { ascending: true }).range(from, to)
+  );
 
   if (error) {
     console.error("Failed to fetch market_credit_balance_daily:", error.message);
@@ -144,7 +180,9 @@ export async function fetchMarketCmaDaily(): Promise<MarketCmaDaily[]> {
     console.error(error);
     return [];
   }
-  const { data, error } = await supabase.from("market_cma_daily").select("*").order("trade_date", { ascending: true });
+  const { data, error } = await fetchPagedRows((from, to) =>
+    supabase.from("market_cma_daily").select("*").order("trade_date", { ascending: true }).range(from, to)
+  );
 
   if (error) {
     console.error("Failed to fetch market_cma_daily:", error.message);

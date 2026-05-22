@@ -49,7 +49,7 @@ export default async function HomePage({
   const cardRisk = latestRiskRow ?? { totalScore: risk.totalScore, riskLevel: risk.riskLevel, summary: null };
 
   const liquiditySeries = filteredLiquidity.map((row) => ({
-    tradeDate: row.tradeDate.slice(5),
+    tradeDate: row.tradeDate,
     investorDepositMillionKrw: row.investorDepositMillionKrw,
     derivativesDepositMillionKrw: row.derivativesDepositMillionKrw,
     rpBalanceMillionKrw: row.rpBalanceMillionKrw,
@@ -57,7 +57,7 @@ export default async function HomePage({
   }));
 
   const creditSeries = filteredCredit.map((row) => ({
-    tradeDate: row.tradeDate.slice(5),
+    tradeDate: row.tradeDate,
     creditLoanMillionKrw: row.creditLoanMillionKrw,
     creditShortMillionKrw: row.creditShortMillionKrw,
     collateralLoanMillionKrw: row.collateralLoanMillionKrw,
@@ -65,7 +65,7 @@ export default async function HomePage({
   }));
 
   const cmaSeries = filteredCma.map((row) => ({
-    tradeDate: row.tradeDate.slice(5),
+    tradeDate: row.tradeDate,
     totalMillionKrw: row.totalMillionKrw,
     rpTypeMillionKrw: row.rpTypeMillionKrw,
     mmfTypeMillionKrw: row.mmfTypeMillionKrw,
@@ -77,7 +77,7 @@ export default async function HomePage({
   const indexByDate = new Map<string, { tradeDate: string; kospi: number | null; kosdaq: number | null; kospi200: number | null }>();
   filteredIndex.forEach((row) => {
     if (!indexByDate.has(row.tradeDate)) {
-      indexByDate.set(row.tradeDate, { tradeDate: row.tradeDate.slice(5), kospi: null, kosdaq: null, kospi200: null });
+      indexByDate.set(row.tradeDate, { tradeDate: row.tradeDate, kospi: null, kosdaq: null, kospi200: null });
     }
     const item = indexByDate.get(row.tradeDate);
     if (!item) return;
@@ -102,7 +102,7 @@ export default async function HomePage({
   filteredFlow.forEach((row) => {
     if (!flowByDate.has(row.tradeDate)) {
       flowByDate.set(row.tradeDate, {
-        tradeDate: row.tradeDate.slice(5),
+        tradeDate: row.tradeDate,
         foreignNetBuy: 0,
         institutionNetBuy: 0,
         individualNetBuy: 0,

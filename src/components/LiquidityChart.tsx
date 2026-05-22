@@ -108,6 +108,8 @@ const formatYAxisValue = (value: number | string, category: CategoryKey): string
   return `${Math.round(num).toLocaleString()} 백만`;
 };
 
+const formatDateTick = (value: number | string): string => String(value).slice(5);
+
 export function LiquidityChart({ data }: LiquidityChartProps) {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -193,7 +195,7 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
               height={chartSize.height}
               margin={{ top: 10, right: isMobile ? 8 : 24, left: isMobile ? 4 : 12, bottom: 0 }}
             >
-              <XAxis dataKey="tradeDate" tick={{ fontSize: isMobile ? 10 : 12 }} />
+              <XAxis dataKey="tradeDate" tick={{ fontSize: isMobile ? 10 : 12 }} tickFormatter={formatDateTick} />
               <YAxis
                 yAxisId="left"
                 tick={{ fontSize: isMobile ? 10 : 12 }}
