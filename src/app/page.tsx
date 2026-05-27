@@ -1,16 +1,19 @@
 ﻿import Link from "next/link";
 import { AppLayout } from "@/components/AppLayout";
 import { LiquidityChart } from "@/components/LiquidityChart";
+import { RiskNormalizedCompareChart } from "@/components/RiskNormalizedCompareChart";
+import { RiskScoreTrendChart } from "@/components/RiskScoreTrendChart";
 import { RiskSummaryCard } from "@/components/RiskSummaryCard";
 import { SignalChecklist } from "@/components/SignalChecklist";
 import { RunRiskButton } from "@/components/RunRiskButton";
-import { calculateMarketRisk } from "@/lib/calculateMarketRisk";
+import { buildMarketRiskSeries, calculateMarketRisk } from "@/lib/calculateMarketRisk";
 import {
   fetchMarketLiquidityDaily,
   fetchMarketIndexDaily,
   fetchInvestorFlowDaily,
   fetchMarketCreditBalanceDaily,
   fetchMarketCmaDaily,
+  fetchMarketRiskDailySeries,
   fetchLatestMarketRiskDaily,
   fetchLatestSignalEvents
 } from "@/lib/fetchMarketData";
@@ -33,6 +36,7 @@ export default async function HomePage({
   const flowData = await fetchInvestorFlowDaily();
   const creditData = await fetchMarketCreditBalanceDaily();
   const cmaData = await fetchMarketCmaDaily();
+  const savedRiskSeries = await fetchMarketRiskDailySeries();
   const latestRiskRow = await fetchLatestMarketRiskDaily();
   const latestSignals = await fetchLatestSignalEvents();
 
@@ -120,6 +124,21 @@ export default async function HomePage({
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([, v]) => v);
 
+  const calculatedRiskSeries = buildMarketRiskSeries({
+    liquidityRows: filteredLiquidity,
+    creditRows: filteredCredit,
+    cmaRows: filteredCma,
+    indexRows: filteredIndex,
+    flowRows: filteredFlow
+  });
+
+  const riskSeriesBase = (savedRiskSeries.length > 0 ? savedRiskSeries : calculatedRiskSeries).map((row) => ({
+    tradeDate: row.tradeDate,
+    totalScore: row.totalScore,
+    riskLevel: row.riskLevel
+  }));
+  const riskSeries = takeRange(riskSeriesBase, range);
+
   const description = `실제 데이터 | 유동성: ${filteredLiquidity.length}건, 신용잔고: ${filteredCredit.length}건, CMA: ${filteredCma.length}건, 지수: ${filteredIndex.length}건, 투자자 수급: ${filteredFlow.length}건`;
 
   return (
@@ -150,6 +169,8 @@ export default async function HomePage({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
         <div className="min-w-0 space-y-4">
           <RiskSummaryCard totalScore={cardRisk.totalScore} riskLevel={cardRisk.riskLevel} summary={cardRisk.summary ?? null} />
+          <RiskScoreTrendChart data={riskSeries} />
+          <RiskNormalizedCompareChart riskSeries={riskSeries} indexSeries={indexSeries} />
           <LiquidityChart
             data={{
               liquidity: liquiditySeries,

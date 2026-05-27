@@ -241,6 +241,48 @@ export async function fetchLatestMarketRiskDaily(): Promise<
   };
 }
 
+export async function fetchMarketRiskDailySeries(): Promise<
+  Array<
+    Pick<MarketRiskScore, "tradeDate" | "totalScore" | "riskLevel" | "liquidityScore" | "leverageScore" | "flowScore" | "technicalScore"> & {
+      cmaScore?: number;
+      summary?: string | null;
+    }
+  >
+> {
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+
+  const { data, error } = await fetchPagedRows((from, to) =>
+    supabase
+      .from("market_risk_daily")
+      .select("trade_date,total_score,risk_level,liquidity_score,leverage_score,flow_score,technical_score,cma_score,summary")
+      .order("trade_date", { ascending: true })
+      .range(from, to)
+  );
+
+  if (error) {
+    console.error("Failed to fetch market_risk_daily series:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    tradeDate: row.trade_date,
+    liquidityScore: row.liquidity_score ?? 0,
+    leverageScore: row.leverage_score ?? 0,
+    flowScore: row.flow_score ?? 0,
+    technicalScore: row.technical_score ?? 0,
+    cmaScore: row.cma_score ?? 0,
+    totalScore: row.total_score ?? 0,
+    riskLevel: row.risk_level ?? "stable",
+    summary: row.summary ?? null
+  }));
+}
+
 export async function fetchLatestSignalEvents(): Promise<SignalEvent[]> {
   let supabase;
   try {
