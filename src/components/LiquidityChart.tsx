@@ -146,6 +146,8 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
   const chartData = useMemo(() => data[activeCategory], [activeCategory, data]);
   const activeMeta = categoryMeta[activeCategory];
   const effectiveYAxisId = isMobile && activeCategory === "index" ? "left" : activeMeta.yAxisId;
+  const brushStartIndex = Math.max(0, chartData.length - 120);
+  const brushEndIndex = Math.max(0, chartData.length - 1);
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -231,15 +233,17 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
                   name={line.label}
                 />
               ))}
-              <Brush
-                dataKey="tradeDate"
-                height={30}
-                stroke="#cbd5e1"
-                fill="#f8fafc"
-                tickFormatter={() => ""}
-                startIndex={Math.max(0, chartData.length - 120)}
-                endIndex={Math.max(0, chartData.length - 1)}
-              />
+              {chartData.length > 0 ? (
+                <Brush
+                  dataKey="tradeDate"
+                  height={30}
+                  stroke="#cbd5e1"
+                  fill="#f8fafc"
+                  tickFormatter={() => ""}
+                  startIndex={brushStartIndex}
+                  endIndex={brushEndIndex}
+                />
+              ) : null}
             </LineChart>
         ) : (
           <div className="h-full w-full animate-pulse rounded-lg bg-slate-100" />
