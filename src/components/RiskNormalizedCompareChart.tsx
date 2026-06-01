@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import { Brush, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 
 interface RiskNormalizedCompareChartProps {
   riskSeries: Array<{ tradeDate: string; totalScore: number }>;
@@ -74,6 +74,8 @@ export function RiskNormalizedCompareChart({ riskSeries, indexSeries }: RiskNorm
       kospiRaw: row.kospi
     }));
   }, [indexSeries, riskSeries]);
+  const brushStartIndex = Math.max(0, chartData.length - 120);
+  const brushEndIndex = Math.max(0, chartData.length - 1);
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -144,6 +146,15 @@ export function RiskNormalizedCompareChart({ riskSeries, indexSeries }: RiskNorm
                   <Line yAxisId="right" type="monotone" dataKey="kospiRaw" name="KOSPI" stroke="#2563eb" strokeWidth={2} dot={false} />
                 </>
               )}
+              <Brush
+                dataKey="tradeDate"
+                height={30}
+                stroke="#cbd5e1"
+                fill="#f8fafc"
+                tickFormatter={() => ""}
+                startIndex={brushStartIndex}
+                endIndex={brushEndIndex}
+              />
             </LineChart>
           ) : (
             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-300 text-sm text-slate-500">

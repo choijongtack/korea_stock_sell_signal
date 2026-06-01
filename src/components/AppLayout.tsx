@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Activity, BarChart3, Database, FlaskConical, LineChart, PieChart } from "lucide-react";
+import { MarketAdviceChat } from "@/components/MarketAdviceChat";
 
 interface AppLayoutProps {
   title: string;
@@ -20,6 +22,7 @@ const navItems = [
 
 export function AppLayout({ title, description, children }: AppLayoutProps) {
   const [isAdmin, setIsAdmin] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     let isMounted = true;
@@ -62,6 +65,12 @@ export function AppLayout({ title, description, children }: AppLayoutProps) {
                 key={href}
                 className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
                 href={href}
+                onClick={(event) => {
+                  if (href === "/signals") {
+                    event.preventDefault();
+                    router.push(`/signals?refresh=${Date.now()}`);
+                  }
+                }}
               >
                 <Icon className="h-4 w-4" />
                 {label}
@@ -71,6 +80,7 @@ export function AppLayout({ title, description, children }: AppLayoutProps) {
         </header>
         {children}
       </div>
+      <MarketAdviceChat />
     </main>
   );
 }

@@ -49,7 +49,7 @@ type CachedRiskReport = {
 const REPORT_CACHE_DIR = path.join(process.cwd(), ".cache", "ai-risk-reports");
 const REPORT_PROMPT_VERSION = "risk-report-v1";
 const RISK_REPORT_INSTRUCTIONS =
-  "You are a market risk analyst with more than 20 years of experience analyzing Korean equity market flows, margin credit, and liquidity indicators. Your goal is not to recommend investments, but to interpret market fragility, overheating, and flow divergence from evidence. Use only the supplied metrics and signals. Do not infer missing data. Do not give definitive buy or sell instructions; express conclusions as risk management scenarios. Write the report in Korean. Return only JSON matching the schema.";
+  "You are a market risk analyst with more than 20 years of experience analyzing Korean equity market flows, margin credit, and liquidity indicators. Your goal is not to recommend investments, but to interpret market fragility, overheating, and flow divergence from evidence. Use only the supplied metrics and signals. Do not infer missing data. Do not give definitive buy or sell instructions; express conclusions as risk management scenarios. Write the report in Korean. Return only JSON matching the schema. If score_change.total is not 0, include explicit analysis of why the score changed compared with the previous evaluation.";
 
 const REPORT_SCHEMA = {
   type: "object",
@@ -110,6 +110,43 @@ function normalizeReportInput(input: RiskReportInput) {
   };
 }
 
+type PreviousRiskSnapshot = {
+  tradeDate: string | null;
+  totalScore: number;
+  liquidityScore: number;
+  leverageScore: number;
+  flowScore: number;
+  technicalScore: number;
+  cmaScore: number;
+} | null;
+
+async function fetchPreviousRiskSnapshot(tradeDate?: string | null): Promise<PreviousRiskSnapshot> {
+  if (!tradeDate) return null;
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from("market_risk_daily")
+      .select("trade_date,total_score,liquidity_score,leverage_score,flow_score,technical_score,cma_score")
+      .lt("trade_date", tradeDate)
+      .order("trade_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      tradeDate: data.trade_date ?? null,
+      totalScore: data.total_score ?? 0,
+      liquidityScore: data.liquidity_score ?? 0,
+      leverageScore: data.leverage_score ?? 0,
+      flowScore: data.flow_score ?? 0,
+      technicalScore: data.technical_score ?? 0,
+      cmaScore: data.cma_score ?? 0
+    };
+  } catch {
+    return null;
+  }
+}
+
 function getInputHash(input: RiskReportInput) {
   return crypto.createHash("sha256").update(JSON.stringify(normalizeReportInput(input))).digest("hex");
 }
@@ -136,10 +173,10 @@ function isRiskReport(value: unknown): value is RiskReport {
   );
 }
 
-async function readCachedReport(cachePath: string, reportDate: string): Promise<RiskReport | null> {
+async function readCachedReport(cachePath: string, reportDate: string, inputHash: string): Promise<RiskReport | null> {
   try {
     const parsed = JSON.parse(await readFile(cachePath, "utf8")) as Partial<CachedRiskReport>;
-    if (parsed.reportDate === reportDate && isRiskReport(parsed.report)) return parsed.report;
+    if (parsed.reportDate === reportDate && parsed.inputHash === inputHash && isRiskReport(parsed.report)) return parsed.report;
   } catch {
     return null;
   }
@@ -157,15 +194,16 @@ async function writeCachedReport(cachePath: string, reportDate: string, inputHas
   await writeFile(cachePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
-async function readStoredReport(reportDate: string): Promise<RiskReport | null> {
+async function readStoredReport(reportDate: string, inputHash: string): Promise<RiskReport | null> {
   try {
     const { data, error } = await getSupabaseAdmin()
       .from("market_risk_ai_reports")
-      .select("report")
+      .select("report,input_hash")
       .eq("report_date", reportDate)
       .eq("prompt_version", REPORT_PROMPT_VERSION)
       .maybeSingle();
     if (error || !data) return null;
+    if (data.input_hash !== inputHash) return null;
     return isRiskReport(data.report) ? data.report : null;
   } catch {
     return null;
@@ -191,7 +229,7 @@ async function writeStoredReport(reportDate: string, inputHash: string, report: 
   }
 }
 
-function buildFallbackReport(input: RiskReportInput): RiskReport {
+function buildFallbackReport(input: RiskReportInput, previous: PreviousRiskSnapshot): RiskReport {
   const headline =
     input.totalScore >= 85
       ? "Market risk is in a crisis zone"
@@ -217,6 +255,16 @@ function buildFallbackReport(input: RiskReportInput): RiskReport {
       body: "If technical trend damage is still limited, this report should be read as a pre-break fragility warning rather than a post-break confirmation."
     }
   ];
+
+  if (previous) {
+    const delta = input.totalScore - previous.totalScore;
+    if (delta !== 0) {
+      sections.splice(1, 0, {
+        title: "점수 변동 원인",
+        body: `이전 평가(${previous.tradeDate ?? "N/A"}) 대비 총점이 ${delta > 0 ? "+" : ""}${delta} 변했습니다. 세부 점수(유동성/레버리지/수급/기술/CMA) 변화와 신호 증감을 중심으로 변동 원인을 점검해야 합니다.`
+      });
+    }
+  }
 
   return {
     source: "fallback",
@@ -262,7 +310,7 @@ function extractOutputText(responseJson: unknown): string | null {
   return parts.length > 0 ? parts.join("\n") : null;
 }
 
-async function tryOpenAiReport(input: RiskReportInput): Promise<RiskReport | null> {
+async function tryOpenAiReport(input: RiskReportInput, previous: PreviousRiskSnapshot): Promise<RiskReport | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
@@ -270,6 +318,18 @@ async function tryOpenAiReport(input: RiskReportInput): Promise<RiskReport | nul
   const timeout = setTimeout(() => controller.abort(), 60000);
 
   try {
+    const normalizedInput = normalizeReportInput(input);
+    const scoreChange = previous
+      ? {
+          total: normalizedInput.score.total - previous.totalScore,
+          liquidity: normalizedInput.score.liquidity - previous.liquidityScore,
+          leverage: normalizedInput.score.leverage - previous.leverageScore,
+          flow: normalizedInput.score.flow - previous.flowScore,
+          technical: normalizedInput.score.technical - previous.technicalScore,
+          cma: normalizedInput.score.cma - previous.cmaScore
+        }
+      : null;
+
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       signal: controller.signal,
@@ -280,7 +340,11 @@ async function tryOpenAiReport(input: RiskReportInput): Promise<RiskReport | nul
       body: JSON.stringify({
         model: process.env.OPENAI_RISK_REPORT_MODEL ?? "gpt-4o-mini",
         instructions: RISK_REPORT_INSTRUCTIONS,
-        input: JSON.stringify(normalizeReportInput(input)),
+        input: JSON.stringify({
+          ...normalizedInput,
+          previous_evaluation: previous,
+          score_change: scoreChange
+        }),
         text: {
           format: {
             type: "json_schema",
@@ -305,16 +369,27 @@ async function tryOpenAiReport(input: RiskReportInput): Promise<RiskReport | nul
 }
 
 export async function generateRiskReport(input: RiskReportInput): Promise<RiskReport> {
+  return generateRiskReportWithOptions(input, { forceRefresh: false });
+}
+
+export async function generateRiskReportWithOptions(
+  input: RiskReportInput,
+  options: { forceRefresh?: boolean } = {}
+): Promise<RiskReport> {
   const reportDate = getReportDate(input);
   const inputHash = getInputHash(input);
   const cachePath = getCachePath(reportDate);
-  const stored = await readStoredReport(reportDate);
-  if (stored) return stored;
+  const previous = await fetchPreviousRiskSnapshot(input.tradeDate);
+  const forceRefresh = options.forceRefresh === true;
+  if (!forceRefresh) {
+    const stored = await readStoredReport(reportDate, inputHash);
+    if (stored) return stored;
 
-  const cached = await readCachedReport(cachePath, reportDate);
-  if (cached) return cached;
+    const cached = await readCachedReport(cachePath, reportDate, inputHash);
+    if (cached) return cached;
+  }
 
-  const report = (await tryOpenAiReport(input)) ?? buildFallbackReport(input);
+  const report = (await tryOpenAiReport(input, previous)) ?? buildFallbackReport(input, previous);
   await writeStoredReport(reportDate, inputHash, report);
   await writeCachedReport(cachePath, reportDate, inputHash, report);
   return report;

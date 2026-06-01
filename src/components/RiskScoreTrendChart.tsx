@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import { Brush, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import type { RiskLevel } from "@/types/market";
 
 interface RiskScoreTrendChartProps {
@@ -51,6 +51,8 @@ export function RiskScoreTrendChart({ data }: RiskScoreTrendChartProps) {
   }, [mounted]);
 
   const latest = useMemo(() => data.at(-1) ?? null, [data]);
+  const brushStartIndex = Math.max(0, data.length - 120);
+  const brushEndIndex = Math.max(0, data.length - 1);
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -103,6 +105,15 @@ export function RiskScoreTrendChart({ data }: RiskScoreTrendChartProps) {
                   return <circle cx={cx} cy={cy} r={2.75} fill={levelColor[row.riskLevel] ?? "#64748b"} />;
                 }}
                 isAnimationActive={false}
+              />
+              <Brush
+                dataKey="tradeDate"
+                height={30}
+                stroke="#cbd5e1"
+                fill="#f8fafc"
+                tickFormatter={() => ""}
+                startIndex={brushStartIndex}
+                endIndex={brushEndIndex}
               />
             </LineChart>
           ) : (

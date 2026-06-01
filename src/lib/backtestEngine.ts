@@ -285,15 +285,8 @@ async function persistBacktestResults(
   const allPayload = [...toRiskPayload];
   if (allPayload.length === 0) return 0;
 
-  const riskDates = [...new Set(riskRows.map((r) => r.trade_date))];
-
-  if (riskDates.length > 0) {
-    const delRisk = await supabase.from("backtest_results").delete().eq("source_type", "market_risk_daily").in("trade_date", riskDates);
-    if (delRisk.error) throw new Error(`Backtest save failed(delete risk rows): ${delRisk.error.message}`);
-  }
-  // Cleanup legacy bulky signal_event persistence rows.
-  const delLegacySignal = await supabase.from("backtest_results").delete().eq("source_type", "signal_event");
-  if (delLegacySignal.error) throw new Error(`Backtest save failed(delete legacy signal rows): ${delLegacySignal.error.message}`);
+  const delExisting = await supabase.from("backtest_results").delete().in("source_type", ["market_risk_daily", "signal_event"]);
+  if (delExisting.error) throw new Error(`Backtest save failed(delete existing rows): ${delExisting.error.message}`);
 
   const chunkSize = 1000;
   let inserted = 0;
