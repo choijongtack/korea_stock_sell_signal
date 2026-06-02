@@ -2,6 +2,7 @@ import "server-only";
 import crypto from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { buildConditionStatus, buildRawScoreBreakdown, CATEGORY_CAPS, SCORE_RULES_FOR_REPORT, summarizeSignalGroups } from "@/lib/signalAnalysis";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import type { RiskLevel, SignalEvent } from "@/types/market";
 
@@ -41,15 +42,16 @@ export type RiskReport = {
 
 type CachedRiskReport = {
   reportDate: string;
+  promptVersion: string;
   inputHash: string;
   generatedAt: string;
   report: RiskReport;
 };
 
 const REPORT_CACHE_DIR = path.join(process.cwd(), ".cache", "ai-risk-reports");
-const REPORT_PROMPT_VERSION = "risk-report-v1";
+const REPORT_PROMPT_VERSION = "risk-report-v3";
 const RISK_REPORT_INSTRUCTIONS =
-  "You are a market risk analyst with more than 20 years of experience analyzing Korean equity market flows, margin credit, and liquidity indicators. Your goal is not to recommend investments, but to interpret market fragility, overheating, and flow divergence from evidence. Use only the supplied metrics and signals. Do not infer missing data. Do not give definitive buy or sell instructions; express conclusions as risk management scenarios. Write the report in Korean. Return only JSON matching the schema. If score_change.total is not 0, include explicit analysis of why the score changed compared with the previous evaluation.";
+  "You are a market risk analyst with more than 20 years of experience analyzing Korean equity market flows, margin credit, and liquidity indicators. Your goal is not to recommend investments, but to interpret market fragility, overheating, and flow divergence from evidence. Use only the supplied metrics, score rules, condition status, raw score breakdown, category caps, and signal groups. Do not infer missing data. Do not give definitive buy or sell instructions; express conclusions as risk management scenarios. Write the report in Korean. Return only JSON matching the schema. Explain the score in plain language: triggered conditions, non-triggered conditions, why the same metric can affect liquidity and leverage separately, category caps, and why risk improved or worsened versus the previous evaluation when score_change is available. Never mention foreign selling, institutional selling, or flow deterioration unless condition_status has a triggered foreign/institution flow condition or signal_groups contains a flow category.";
 
 const REPORT_SCHEMA = {
   type: "object",
@@ -88,6 +90,10 @@ const REPORT_SCHEMA = {
 } as const;
 
 function normalizeReportInput(input: RiskReportInput) {
+  const signalGroups = summarizeSignalGroups(input.signals);
+  const conditionStatus = buildConditionStatus(input.signals);
+  const rawScoreBreakdown = buildRawScoreBreakdown(input.signals);
+
   return {
     tradeDate: input.tradeDate ?? null,
     score: {
@@ -100,9 +106,23 @@ function normalizeReportInput(input: RiskReportInput) {
       cma: input.cmaScore ?? 0
     },
     summary: input.summary ?? null,
+    score_rules: SCORE_RULES_FOR_REPORT,
+    condition_status: conditionStatus,
+    raw_score_breakdown: rawScoreBreakdown,
+    category_caps: CATEGORY_CAPS,
+    signal_groups: signalGroups.map((group) => ({
+      category: group.title,
+      score: group.score,
+      signalCount: group.signalCount,
+      summary: group.summary,
+      signalCodes: group.signalCodes
+    })),
     signals: input.signals
       .map((signal) => ({
         date: signal.tradeDate,
+        code: signal.signalCode ?? signal.signalType,
+        title: signal.title ?? null,
+        severity: signal.severity ?? null,
         score: signal.triggerScore,
         reason: signal.triggerReason
       }))
@@ -176,7 +196,14 @@ function isRiskReport(value: unknown): value is RiskReport {
 async function readCachedReport(cachePath: string, reportDate: string, inputHash: string): Promise<RiskReport | null> {
   try {
     const parsed = JSON.parse(await readFile(cachePath, "utf8")) as Partial<CachedRiskReport>;
-    if (parsed.reportDate === reportDate && parsed.inputHash === inputHash && isRiskReport(parsed.report)) return parsed.report;
+    if (
+      parsed.reportDate === reportDate &&
+      parsed.promptVersion === REPORT_PROMPT_VERSION &&
+      parsed.inputHash === inputHash &&
+      isRiskReport(parsed.report)
+    ) {
+      return parsed.report;
+    }
   } catch {
     return null;
   }
@@ -187,6 +214,7 @@ async function writeCachedReport(cachePath: string, reportDate: string, inputHas
   await mkdir(path.dirname(cachePath), { recursive: true });
   const payload: CachedRiskReport = {
     reportDate,
+    promptVersion: REPORT_PROMPT_VERSION,
     inputHash,
     generatedAt: new Date().toISOString(),
     report

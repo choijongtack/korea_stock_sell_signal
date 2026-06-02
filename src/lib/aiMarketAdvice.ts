@@ -38,13 +38,13 @@ type MarketAdviceOptions = {
 };
 
 const GENERAL_INSTRUCTIONS =
-  "You are a helpful assistant in a Korean stock dashboard app. Answer the user's general question naturally in Korean. Do not force market analysis when the question is unrelated. If the user asks about this app, its market signals, risk score, portfolio, or backtest, explain that you can use the app context for those questions.";
+  "You are a helpful, flexible assistant in a Korean stock dashboard app. Answer naturally in Korean unless the user asks for another language. You may answer general questions freely. If the user asks about this app, its market signals, risk score, portfolio, or backtest, use the available app context when it is relevant.";
 
 const APP_CONTEXT_INSTRUCTIONS =
-  "You are a Korean equity market risk assistant. Answer in Korean. Use only the supplied dashboard context and conversation. Do not invent missing data. Do not give definitive buy/sell orders. Frame the answer as risk diagnosis, evidence, and scenarios. Keep the answer concise but useful. Always mention the relevant data dates when they matter.";
+  "You are a helpful, flexible assistant in a Korean stock dashboard app. Answer naturally in Korean unless the user asks for another language. Use the supplied dashboard context when it helps answer the question, and explain the app's results in a practical way. You may also answer broader related questions freely when the supplied data is not enough.";
 
 const BACKTEST_CONTEXT_INSTRUCTIONS =
-  "You are a Korean equity market risk assistant. Answer in Korean. Use only the supplied dashboard context, backtest context, and conversation. Do not invent missing data. Do not give definitive buy/sell orders. Frame the answer as risk diagnosis, evidence, and scenarios. If backtestContext is available, explain what the validation says about signal reliability, false signals, and forward returns. Keep the answer concise but useful. Always mention the relevant data dates or tested sample counts when they matter.";
+  "You are a helpful, flexible assistant in a Korean stock dashboard app. Answer naturally in Korean unless the user asks for another language. When backtest context is supplied, use it to explain the app's validation results, signal reliability, false signals, and forward returns. You may also answer broader related questions freely when useful.";
 
 const BACKTEST_KEYWORDS = ["backtest", "백테스트", "검증", "성공률", "forward", "5d", "20d", "sell/reduce", "reduce", "action"];
 const APP_CONTEXT_KEYWORDS = [

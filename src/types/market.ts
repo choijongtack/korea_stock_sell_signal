@@ -76,6 +76,9 @@ export interface SignalEvent {
   tradeDate: string;
   ticker: string;
   signalType: "sell" | "reduce" | "hold";
+  signalCode?: string;
+  severity?: string;
+  title?: string;
   triggerScore: number;
   triggerReason: string;
   createdAt: string;
@@ -113,4 +116,3 @@ export interface KrxStockDaily {
   createdAt?: string;
   updatedAt?: string;
 }
-

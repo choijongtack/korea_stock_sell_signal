@@ -1,5 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { RiskAiReport } from "@/components/RiskAiReport";
+import { RiskScoreExplanation } from "@/components/RiskScoreExplanation";
 import { RiskSummaryCard } from "@/components/RiskSummaryCard";
 import { SignalChecklist } from "@/components/SignalChecklist";
 import { generateRiskReportWithOptions } from "@/lib/aiRiskReport";
@@ -40,6 +41,7 @@ export default async function SignalsPage({
           <RiskSummaryCard totalScore={risk.totalScore} riskLevel={risk.riskLevel} summary={risk.summary ?? null} />
           <SignalChecklist signals={latestSignals} />
         </div>
+        <RiskScoreExplanation risk={risk} signals={latestSignals} />
         <RiskAiReport report={report} />
       </div>
     </AppLayout>

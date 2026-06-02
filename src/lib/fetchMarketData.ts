@@ -325,6 +325,9 @@ export async function fetchLatestSignalEvents(): Promise<SignalEvent[]> {
     tradeDate: row.trade_date,
     ticker: row.ticker ?? "MARKET",
     signalType: row.signal_type ?? "hold",
+    signalCode: row.signal_type ?? undefined,
+    severity: row.severity ?? undefined,
+    title: row.title ?? undefined,
     triggerScore: row.trigger_score ?? row.score_delta ?? 0,
     triggerReason: row.trigger_reason ?? row.description ?? row.title ?? "신호 설명 없음",
     createdAt: row.created_at ?? new Date().toISOString()
