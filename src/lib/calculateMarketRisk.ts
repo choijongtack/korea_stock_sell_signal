@@ -17,6 +17,7 @@ import type {
   MarketCapDaily as RiskMarketCapDaily,
   MarketIndexDaily as RiskMarketIndexDaily,
   MarketLiquidityDaily as RiskMarketLiquidityDaily,
+  MarketM2Monthly as RiskMarketM2Monthly,
   MarketRiskCalculationResult,
   SignalEventInput
 } from "@/types/risk";
@@ -370,6 +371,7 @@ type CalculateMarketRiskParams = {
   indexRows: RiskMarketIndexDaily[];
   flowRows: RiskInvestorFlowDaily[];
   marketCapRows?: RiskMarketCapDaily[];
+  m2Rows?: RiskMarketM2Monthly[];
   debug?: boolean;
 };
 
@@ -414,6 +416,7 @@ export function calculateMarketRiskEngine({
   indexRows,
   flowRows,
   marketCapRows = [],
+  m2Rows = [],
   debug = false
 }: CalculateMarketRiskParams): MarketRiskCalculationResult {
   const sortedKospi = [...indexRows]
@@ -441,12 +444,41 @@ export function calculateMarketRiskEngine({
     marketCapByDate.set(row.trade_date, (marketCapByDate.get(row.trade_date) ?? 0) + row.market_cap_million_krw);
   }
 
+  const sortedM2Rows = [...m2Rows]
+    .filter((row) => typeof row.m2_billion_krw === "number" && row.m2_billion_krw > 0)
+    .sort((a, b) => a.trade_date.localeCompare(b.trade_date));
+
+  const getM2ForDate = (tradeDate: string): number | null => {
+    let matched: number | null = null;
+    for (const row of sortedM2Rows) {
+      if (row.trade_date > tradeDate) break;
+      matched = row.m2_billion_krw;
+    }
+    return matched;
+  };
+
   const creditToMarketCapRatioByDate = new Map<string, number>();
   for (const [date, credit] of creditByDate) {
     const creditLoan = credit.credit_loan_million_krw;
     const totalMarketCap = marketCapByDate.get(date) ?? null;
     if (typeof creditLoan === "number" && typeof totalMarketCap === "number" && totalMarketCap > 0) {
       creditToMarketCapRatioByDate.set(date, (creditLoan / totalMarketCap) * 100);
+    }
+  }
+
+  const depositToM2RatioByDate = new Map<string, number>();
+  const depositToMarketCapRatioByDate = new Map<string, number>();
+  for (const [date, liquidity] of liquidityByDate) {
+    const investorDeposit = liquidity.investor_deposit_million_krw;
+    const m2BillionKrw = getM2ForDate(date);
+    const totalMarketCap = marketCapByDate.get(date) ?? null;
+
+    if (typeof investorDeposit === "number" && typeof m2BillionKrw === "number" && m2BillionKrw > 0) {
+      depositToM2RatioByDate.set(date, (investorDeposit / (m2BillionKrw * 1000)) * 100);
+    }
+
+    if (typeof investorDeposit === "number" && typeof totalMarketCap === "number" && totalMarketCap > 0) {
+      depositToMarketCapRatioByDate.set(date, (investorDeposit / totalMarketCap) * 100);
     }
   }
 
@@ -588,6 +620,61 @@ export function calculateMarketRiskEngine({
         title: "유동성 질 악화",
         description: `신용융자/예탁금 비율이 ${creditToDepositRatio.toFixed(1)}%로, 대기자금 대비 레버리지 부담이 높은 상태입니다.`
       });
+    }
+
+    const depositToM2Ratio = depositToM2RatioByDate.get(date) ?? null;
+    if (depositToM2Ratio !== null && depositToM2Ratio >= 2.5) {
+      daySignals.push({
+        trade_date: date,
+        signal_type: "deposit_to_m2_ratio_high",
+        severity: "info",
+        score_delta: 0,
+        title: "시중 통화량 대비 증시 대기자금 풍부",
+        description: `투자자예탁금/M2 비율이 ${depositToM2Ratio.toFixed(2)}%입니다. 단독으로는 위험 신호가 아니라 증시 주변 대기자금이 풍부하다는 신호입니다.`
+      });
+    }
+
+    const depositToMarketCapRatio = depositToMarketCapRatioByDate.get(date) ?? null;
+    if (depositToMarketCapRatio !== null) {
+      let scoreDelta = 0;
+      let severity: "warning" | "danger" | null = null;
+      if (depositToMarketCapRatio < 1.5) {
+        scoreDelta = 10;
+        severity = "danger";
+      } else if (depositToMarketCapRatio < 3) {
+        scoreDelta = 5;
+        severity = "warning";
+      }
+
+      if (severity !== null && scoreDelta > 0) {
+        liquidityScore += scoreDelta;
+        daySignals.push({
+          trade_date: date,
+          signal_type: "deposit_to_market_cap_ratio_weak",
+          severity,
+          score_delta: scoreDelta,
+          title: "시총 대비 예탁금 방어력 약화",
+          description: `투자자예탁금/KOSPI+KOSDAQ 시가총액 비율이 ${depositToMarketCapRatio.toFixed(2)}%입니다. 3% 미만은 시장 규모 대비 대기 매수 자금이 약해지는 구간입니다.`
+        });
+      }
+
+      const previousDepositToMarketCapRatios = sortedKospi
+        .slice(Math.max(0, i - 20), i)
+        .map((r) => depositToMarketCapRatioByDate.get(r.trade_date) ?? null)
+        .filter((v): v is number => typeof v === "number");
+      const previousAverage = previousDepositToMarketCapRatios.length >= 10 ? avg(previousDepositToMarketCapRatios) : null;
+      if (previousAverage !== null && depositToMarketCapRatio < previousAverage * 0.9) {
+        const scoreDelta = 3;
+        liquidityScore += scoreDelta;
+        daySignals.push({
+          trade_date: date,
+          signal_type: "deposit_to_market_cap_ratio_falling",
+          severity: "caution",
+          score_delta: scoreDelta,
+          title: "시총 대비 예탁금 비율 하락",
+          description: "투자자예탁금/시가총액 비율이 최근 평균 대비 10% 이상 낮습니다. 주가 수준 대비 신규 실탄이 약해지는 신호입니다."
+        });
+      }
     }
     liquidityScore = Math.min(25, liquidityScore);
 

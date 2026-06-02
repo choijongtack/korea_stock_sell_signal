@@ -5,7 +5,15 @@ import { syncKrxMarketCapForDates } from "@/lib/syncKrxOpenApi";
 import { uploadKrxDailyCsv, downloadKrxDailyCsv } from "@/lib/supabaseStorage";
 
 type Payload = {
-  dataType: "market_liquidity_partial" | "market_index" | "investor_flow" | "market_cma" | "market_credit_balance" | "krx_market_breadth" | "krx_stock_daily";
+  dataType:
+    | "market_liquidity_partial"
+    | "market_index"
+    | "investor_flow"
+    | "market_cma"
+    | "market_credit_balance"
+    | "market_m2_monthly"
+    | "krx_market_breadth"
+    | "krx_stock_daily";
   rows: Record<string, unknown>[];
 };
 
@@ -106,6 +114,17 @@ const toMarketCma = (rows: Record<string, unknown>[]) =>
     issuing_note_type_million_krw: r.issuingNoteTypeMillionKrw,
     other_type_million_krw: r.otherTypeMillionKrw,
     total_million_krw: r.totalMillionKrw,
+    created_at: r.createdAt
+  }));
+
+const toMarketM2Monthly = (rows: Record<string, unknown>[]) =>
+  rows.map((r) => ({
+    trade_date: r.tradeDate,
+    source_time: r.sourceTime,
+    m2_billion_krw: r.m2BillionKrw,
+    unit_name: r.unitName,
+    stat_code: r.statCode,
+    item_code: r.itemCode,
     created_at: r.createdAt
   }));
 
@@ -241,6 +260,16 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: "Validation failed for market_credit_balance_daily." }, { status: 400 });
       }
       const { error } = await supabaseAdmin.from("market_credit_balance_daily").upsert(payload, { onConflict: "trade_date" });
+      if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+      return NextResponse.json({ success: true, count: payload.length });
+    }
+
+    if (body.dataType === "market_m2_monthly") {
+      const payload = toMarketM2Monthly(body.rows);
+      if (!payload.every((row) => hasKeys(row, ["trade_date", "source_time", "m2_billion_krw", "created_at"]))) {
+        return NextResponse.json({ success: false, message: "Validation failed for market_m2_monthly." }, { status: 400 });
+      }
+      const { error } = await supabaseAdmin.from("market_m2_monthly").upsert(payload, { onConflict: "trade_date" });
       if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
       return NextResponse.json({ success: true, count: payload.length });
     }

@@ -8,6 +8,7 @@ type SummaryKey =
   | "freesis_cma"
   | "krx_index"
   | "investor_flow"
+  | "ecos_m2"
   | "krx_market_breadth"
   | "krx_market_cap"
   | "krx_stock_daily";
@@ -27,6 +28,7 @@ const TARGETS: Array<{ key: SummaryKey; table: string }> = [
   { key: "freesis_cma", table: "market_cma_daily" },
   { key: "krx_index", table: "market_index_daily" },
   { key: "investor_flow", table: "investor_flow_daily" },
+  { key: "ecos_m2", table: "market_m2_monthly" },
   { key: "krx_market_breadth", table: "market_breadth_daily" },
   { key: "krx_market_cap", table: "market_cap_daily" },
   { key: "krx_stock_daily", table: "krx_stock_daily" }
@@ -77,4 +79,3 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
-

@@ -8,7 +8,8 @@ import { normalizeFreesisCma, normalizeFreesisCreditBalance, normalizeFreesisLiq
 import { normalizeKrxInvestorFlow } from "@/lib/normalizeKrxInvestorFlow";
 import { normalizeKrxIndex } from "@/lib/normalizeKrxIndex";
 import { normalizeKrxStockDaily } from "@/lib/normalizeKrxStockDaily";
-import { upsertInvestorFlowDaily, upsertMarketBreadthDaily, upsertMarketCmaDaily, upsertMarketCreditBalanceDaily, upsertMarketIndexDaily, upsertMarketLiquidityDailyPartial, upsertKrxStockDaily } from "@/lib/saveMarketDataApi";
+import { normalizeEcosM2 } from "@/lib/normalizeEcosM2";
+import { upsertInvestorFlowDaily, upsertMarketBreadthDaily, upsertMarketCmaDaily, upsertMarketCreditBalanceDaily, upsertMarketIndexDaily, upsertMarketLiquidityDailyPartial, upsertMarketM2Monthly, upsertKrxStockDaily } from "@/lib/saveMarketDataApi";
 
 type UploadDataType =
   | "freesis_market_liquidity"
@@ -16,6 +17,7 @@ type UploadDataType =
   | "freesis_cma"
   | "krx_index"
   | "investor_flow"
+  | "ecos_m2"
   | "krx_market_breadth"
   | "krx_market_cap"
   | "krx_stock_daily";
@@ -27,6 +29,7 @@ const DATA_TYPE_OPTIONS: UploadDataType[] = [
   "freesis_cma",
   "krx_index",
   "investor_flow",
+  "ecos_m2",
   "krx_market_cap"
 ];
 // Archived: breadth and stock daily are not part of the current required risk pipeline.
@@ -37,6 +40,7 @@ const DATA_TYPE_LABELS: Record<UploadDataType, string> = {
   freesis_cma: "KOFIA CMA",
   krx_index: "KRX market index",
   investor_flow: "KIS investor flow",
+  ecos_m2: "ECOS M2 money supply",
   krx_market_breadth: "KRX market breadth",
   krx_market_cap: "KRX market cap",
   krx_stock_daily: "KRX stock daily"
@@ -461,6 +465,18 @@ export function DataUpload() {
         return;
       }
 
+      if (selectedType === "ecos_m2") {
+        const normalized = normalizeEcosM2(parsedRows);
+        if (normalized.warnings.length > 0) setValidationMessage((prev) => `${prev} | warnings=${normalized.warnings.slice(0, 5).join(" ; ")}`);
+        if (normalized.data.length === 0) {
+          setSaveMessage("No M2 rows to save. Check column names: TIME and DATA_VALUE are expected.");
+          return;
+        }
+        const result = await upsertMarketM2Monthly(normalized.data);
+        setSaveMessage(result.success ? `Saved ${result.count} rows to market_m2_monthly.` : `Save failed: ${result.message}`);
+        return;
+      }
+
       if (selectedType === "krx_market_cap") {
         setSaveMessage("market_cap_daily is populated through KRX index market cap API. Click the Generate button below.");
         return;
@@ -636,6 +652,38 @@ export function DataUpload() {
     setIsSyncingBreadth(true);
     try {
       const response = await fetch("/api/admin/sync-kofia-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lastDays: syncDays, syncType })
+      });
+      const result = (await response.json()) as {
+        ok: boolean;
+        inserted?: number;
+        datesTried?: number;
+        datesSucceeded?: number;
+        warnings?: string[];
+        error?: string;
+      };
+      if (!response.ok || !result.ok) throw new Error(result.error ?? "Auto sync failed");
+      const warnings = (result.warnings ?? []).slice(0, 5);
+      setSaveMessage(
+        `Auto sync (${syncType}) completed: inserted=${result.inserted ?? 0}, tried=${result.datesTried ?? 0}, succeeded=${result.datesSucceeded ?? 0}${warnings.length ? ` | warnings: ${warnings.join(" ; ")}` : ""}`
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(`Auto sync failed: ${message}`);
+    } finally {
+      setIsSyncingBreadth(false);
+    }
+  };
+
+  const handleAutoSyncEcosData = async (syncType: "ecos_m2" | "ecos_m2_backfill" | "ecos_m2_update") => {
+    setError("");
+    setSaveMessage("");
+    setValidationMessage("");
+    setIsSyncingBreadth(true);
+    try {
+      const response = await fetch("/api/admin/sync-ecos-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lastDays: syncDays, syncType })
@@ -984,6 +1032,34 @@ export function DataUpload() {
             className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-blue-300"
           >
             {isSyncingBreadth ? "Syncing..." : `Update newer ${kofiaSyncLabelByUploadType[selectedType]}`}
+          </button>
+        </div>
+      )}
+      {selectedType === "ecos_m2" && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void handleAutoSyncEcosData("ecos_m2")}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-emerald-300"
+          >
+            {isSyncingBreadth ? "Syncing..." : "Auto Sync ECOS M2 money supply"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleAutoSyncEcosData("ecos_m2_backfill")}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            {isSyncingBreadth ? "Syncing..." : "Backfill older ECOS M2 money supply"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleAutoSyncEcosData("ecos_m2_update")}
+            disabled={isSyncingBreadth || isLoading || isSaving}
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-blue-300"
+          >
+            {isSyncingBreadth ? "Syncing..." : "Update newer ECOS M2 money supply"}
           </button>
         </div>
       )}

@@ -67,6 +67,16 @@ export type MarketCapDailyRow = {
   created_at?: string | null;
 };
 
+export type MarketM2MonthlyRow = {
+  trade_date: string;
+  source_time?: string | null;
+  m2_billion_krw: number | null;
+  unit_name?: string | null;
+  stat_code?: string | null;
+  item_code?: string | null;
+  created_at?: string | null;
+};
+
 export type SignalEventDbInput = {
   trade_date: string;
   ticker: string;

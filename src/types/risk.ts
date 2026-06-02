@@ -85,6 +85,15 @@ export type MarketCapDaily = {
   listed_stock_count?: number | null;
 };
 
+export type MarketM2Monthly = {
+  trade_date: string;
+  source_time?: string | null;
+  m2_billion_krw: number | null;
+  unit_name?: string | null;
+  stat_code?: string | null;
+  item_code?: string | null;
+};
+
 export type SignalEventInput = {
   trade_date: string;
   signal_type: string;

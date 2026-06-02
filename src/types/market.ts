@@ -72,6 +72,24 @@ export interface MarketCmaDaily {
   createdAt: string;
 }
 
+export interface MarketM2Monthly {
+  tradeDate: string;
+  sourceTime: string;
+  m2BillionKrw: number;
+  unitName: string;
+  statCode: string;
+  itemCode: string;
+  createdAt: string;
+}
+
+export interface MarketCapDaily {
+  tradeDate: string;
+  market: "KOSPI" | "KOSDAQ" | string;
+  marketCapMillionKrw: number | null;
+  listedStockCount: number | null;
+  createdAt: string;
+}
+
 export interface SignalEvent {
   tradeDate: string;
   ticker: string;

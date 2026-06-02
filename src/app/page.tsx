@@ -13,6 +13,8 @@ import {
   fetchInvestorFlowDaily,
   fetchMarketCreditBalanceDaily,
   fetchMarketCmaDaily,
+  fetchMarketCapDaily,
+  fetchMarketM2Monthly,
   fetchMarketRiskDailySeries,
   fetchLatestMarketRiskDaily,
   fetchLatestSignalEvents
@@ -36,6 +38,8 @@ export default async function HomePage({
   const flowData = await fetchInvestorFlowDaily();
   const creditData = await fetchMarketCreditBalanceDaily();
   const cmaData = await fetchMarketCmaDaily();
+  const marketCapData = await fetchMarketCapDaily();
+  const m2Data = await fetchMarketM2Monthly();
   const savedRiskSeries = await fetchMarketRiskDailySeries();
   const latestRiskRow = await fetchLatestMarketRiskDaily();
   const latestSignals = await fetchLatestSignalEvents();
@@ -48,6 +52,26 @@ export default async function HomePage({
   const filteredFlow = takeRange(flowData, range);
   const filteredCredit = takeRange(creditData, range);
   const filteredCma = takeRange(cmaData, range);
+
+  const marketCapByDate = new Map<string, number>();
+  marketCapData.forEach((row) => {
+    const market = String(row.market).replace(/\s/g, "").toUpperCase();
+    if (market !== "KOSPI" && market !== "KOSDAQ") return;
+    if (typeof row.marketCapMillionKrw !== "number" || row.marketCapMillionKrw <= 0) return;
+    marketCapByDate.set(row.tradeDate, (marketCapByDate.get(row.tradeDate) ?? 0) + row.marketCapMillionKrw);
+  });
+
+  const sortedM2 = [...m2Data]
+    .filter((row) => typeof row.m2BillionKrw === "number" && row.m2BillionKrw > 0)
+    .sort((a, b) => a.tradeDate.localeCompare(b.tradeDate));
+  const getM2ForDate = (tradeDate: string): number | null => {
+    let matched: number | null = null;
+    for (const row of sortedM2) {
+      if (row.tradeDate > tradeDate) break;
+      matched = row.m2BillionKrw;
+    }
+    return matched;
+  };
 
   const risk = calculateMarketRisk(filteredLiquidity, filteredIndex, filteredFlow, filteredCredit);
   const cardRisk = latestRiskRow ?? { totalScore: risk.totalScore, riskLevel: risk.riskLevel, summary: null };
@@ -124,6 +148,33 @@ export default async function HomePage({
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([, v]) => v);
 
+  const m2MarketCapSeries = filteredLiquidity.map((row) => {
+    const m2BillionKrw = getM2ForDate(row.tradeDate);
+    const totalMarketCapMillionKrw = marketCapByDate.get(row.tradeDate) ?? null;
+    return {
+      tradeDate: row.tradeDate,
+      m2TrillionKrw: m2BillionKrw === null ? null : m2BillionKrw / 1000,
+      totalMarketCapTrillionKrw: totalMarketCapMillionKrw === null ? null : totalMarketCapMillionKrw / 1_000_000
+    };
+  });
+
+  const liquidityRatioSeries = filteredLiquidity.map((row) => {
+    const investorDeposit = row.investorDepositMillionKrw;
+    const m2BillionKrw = getM2ForDate(row.tradeDate);
+    const totalMarketCapMillionKrw = marketCapByDate.get(row.tradeDate) ?? null;
+    return {
+      tradeDate: row.tradeDate,
+      depositToM2Ratio:
+        typeof investorDeposit === "number" && typeof m2BillionKrw === "number" && m2BillionKrw > 0
+          ? (investorDeposit / (m2BillionKrw * 1000)) * 100
+          : null,
+      depositToMarketCapRatio:
+        typeof investorDeposit === "number" && typeof totalMarketCapMillionKrw === "number" && totalMarketCapMillionKrw > 0
+          ? (investorDeposit / totalMarketCapMillionKrw) * 100
+          : null
+    };
+  });
+
   const calculatedRiskSeries = buildMarketRiskSeries({
     liquidityRows: filteredLiquidity,
     creditRows: filteredCredit,
@@ -177,7 +228,9 @@ export default async function HomePage({
               credit: creditSeries,
               cma: cmaSeries,
               index: indexSeries,
-              flow: flowSeries
+              flow: flowSeries,
+              m2MarketCap: m2MarketCapSeries,
+              liquidityRatio: liquidityRatioSeries
             }}
           />
         </div>

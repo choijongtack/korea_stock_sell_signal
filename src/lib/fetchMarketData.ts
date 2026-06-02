@@ -1,6 +1,6 @@
 import "server-only";
 import { getSupabaseReadClient } from "./supabaseAdmin";
-import type { InvestorFlowDaily, MarketCmaDaily, MarketCreditBalanceDaily, MarketIndexDaily, MarketLiquidityDaily, MarketRiskScore, SignalEvent } from "@/types/market";
+import type { InvestorFlowDaily, MarketCapDaily, MarketCmaDaily, MarketCreditBalanceDaily, MarketIndexDaily, MarketLiquidityDaily, MarketM2Monthly, MarketRiskScore, SignalEvent } from "@/types/market";
 
 const SUPABASE_PAGE_SIZE = 1000;
 
@@ -197,6 +197,60 @@ export async function fetchMarketCmaDaily(): Promise<MarketCmaDaily[]> {
     issuingNoteTypeMillionKrw: row.issuing_note_type_million_krw,
     otherTypeMillionKrw: row.other_type_million_krw,
     totalMillionKrw: row.total_million_krw,
+    createdAt: row.created_at ?? new Date().toISOString()
+  }));
+}
+
+export async function fetchMarketCapDaily(): Promise<MarketCapDaily[]> {
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+  const { data, error } = await fetchPagedRows((from, to) =>
+    supabase.from("market_cap_daily").select("*").order("trade_date", { ascending: true }).range(from, to)
+  );
+
+  if (error) {
+    console.error("Failed to fetch market_cap_daily:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    tradeDate: row.trade_date,
+    market: row.market,
+    marketCapMillionKrw: row.market_cap_million_krw,
+    listedStockCount: row.listed_stock_count ?? null,
+    createdAt: row.created_at ?? new Date().toISOString()
+  }));
+}
+
+export async function fetchMarketM2Monthly(): Promise<MarketM2Monthly[]> {
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+  const { data, error } = await fetchPagedRows((from, to) =>
+    supabase.from("market_m2_monthly").select("*").order("trade_date", { ascending: true }).range(from, to)
+  );
+
+  if (error) {
+    console.error("Failed to fetch market_m2_monthly:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    tradeDate: row.trade_date,
+    sourceTime: row.source_time,
+    m2BillionKrw: row.m2_billion_krw,
+    unitName: row.unit_name ?? "십억원",
+    statCode: row.stat_code ?? "161Y006",
+    itemCode: row.item_code ?? "BBHA00",
     createdAt: row.created_at ?? new Date().toISOString()
   }));
 }

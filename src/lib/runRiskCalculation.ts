@@ -8,7 +8,8 @@ import type {
   InvestorFlowDaily,
   MarketCapDaily,
   MarketIndexDaily,
-  MarketLiquidityDaily
+  MarketLiquidityDaily,
+  MarketM2Monthly
 } from "@/types/risk";
 
 async function selectFromCandidates(tables: string[]) {
@@ -70,13 +71,14 @@ async function selectOptionalFromCandidates(tables: string[]) {
 }
 
 export async function runRiskCalculation(options: { debug?: boolean } = {}) {
-  const [liquidityResult, creditResult, cmaResult, indexResult, flowResult, marketCapResult] = await Promise.all([
+  const [liquidityResult, creditResult, cmaResult, indexResult, flowResult, marketCapResult, m2Result] = await Promise.all([
     selectFromCandidates(["market_liquidity_daily"]),
     selectFromCandidates(["market_credit_balance_daily"]),
     selectFromCandidates(["market_cma_daily"]),
     selectFromCandidates(["market_index_daily"]),
     selectFromCandidates(["investor_flow_daily"]),
-    selectOptionalFromCandidates(["market_cap_daily"])
+    selectOptionalFromCandidates(["market_cap_daily"]),
+    selectOptionalFromCandidates(["market_m2_monthly"])
   ]);
 
   const result = calculateMarketRiskEngine({
@@ -86,6 +88,7 @@ export async function runRiskCalculation(options: { debug?: boolean } = {}) {
     indexRows: (indexResult.data ?? []) as MarketIndexDaily[],
     flowRows: (flowResult.data ?? []) as InvestorFlowDaily[],
     marketCapRows: (marketCapResult.data ?? []) as MarketCapDaily[],
+    m2Rows: (m2Result.data ?? []) as MarketM2Monthly[],
     debug: options.debug ?? false
   });
 

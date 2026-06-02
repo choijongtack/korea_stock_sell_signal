@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Line, LineChart, Tooltip, XAxis, YAxis, Brush } from "recharts";
 import { AreaChart } from "lucide-react";
 
-type CategoryKey = "liquidity" | "credit" | "cma" | "index" | "flow";
+type CategoryKey = "liquidity" | "credit" | "cma" | "index" | "flow" | "m2MarketCap" | "liquidityRatio";
 
 interface LiquidityChartProps {
   data: {
@@ -43,6 +43,16 @@ interface LiquidityChartProps {
       institutionNetBuy: number;
       individualNetBuy: number;
       programNetBuy: number;
+    }>;
+    m2MarketCap: Array<{
+      tradeDate: string;
+      m2TrillionKrw: number | null;
+      totalMarketCapTrillionKrw: number | null;
+    }>;
+    liquidityRatio: Array<{
+      tradeDate: string;
+      depositToM2Ratio: number | null;
+      depositToMarketCapRatio: number | null;
     }>;
   };
 }
@@ -98,6 +108,22 @@ const categoryMeta: Record<CategoryKey, { label: string; yAxisId: "left" | "righ
       { key: "individualNetBuy", label: "개인 순매수", color: "#ef4444" },
       { key: "programNetBuy", label: "프로그램 순매수", color: "#7c3aed" }
     ]
+  },
+  m2MarketCap: {
+    label: "M2·시총",
+    yAxisId: "left",
+    lines: [
+      { key: "m2TrillionKrw", label: "M2", color: "#0f766e" },
+      { key: "totalMarketCapTrillionKrw", label: "KOSPI+KOSDAQ 시총", color: "#1d4ed8" }
+    ]
+  },
+  liquidityRatio: {
+    label: "유동성 비율",
+    yAxisId: "left",
+    lines: [
+      { key: "depositToM2Ratio", label: "예탁금 / M2", color: "#059669" },
+      { key: "depositToMarketCapRatio", label: "예탁금 / 시총", color: "#dc2626" }
+    ]
   }
 };
 
@@ -105,7 +131,18 @@ const formatYAxisValue = (value: number | string, category: CategoryKey): string
   const num = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(num)) return String(value);
   if (category === "index") return `${Math.round(num).toLocaleString()} pt`;
-  return `${Math.round(num).toLocaleString()} 백만`;
+  if (category === "m2MarketCap") return `${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}조`;
+  if (category === "liquidityRatio") return `${num.toFixed(2)}%`;
+  return `${(num / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}조`;
+};
+
+const formatTooltipValue = (value: unknown, category: CategoryKey): string => {
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(num)) return String(value ?? "");
+  if (category === "index") return `${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pt`;
+  if (category === "m2MarketCap") return `${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}조`;
+  if (category === "liquidityRatio") return `${num.toFixed(2)}%`;
+  return `${(num / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}조`;
 };
 
 const formatDateTick = (value: number | string): string => String(value).slice(5);
@@ -214,6 +251,7 @@ export function LiquidityChart({ data }: LiquidityChartProps) {
                 />
               ) : null}
               <Tooltip
+                formatter={(value) => formatTooltipValue(value, activeCategory)}
                 contentStyle={{
                   border: "1px solid #e2e8f0",
                   borderRadius: 8,

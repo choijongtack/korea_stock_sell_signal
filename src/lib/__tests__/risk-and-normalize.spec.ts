@@ -200,6 +200,103 @@ describe("credit to market cap ratio", () => {
   });
 });
 
+describe("liquidity intensity ratios", () => {
+  const engineDate = (day: number): string => {
+    const d = new Date(Date.UTC(2026, 0, day));
+    return d.toISOString().slice(0, 10);
+  };
+
+  it("adds liquidity risk for weak deposit/market-cap ratios while recording high deposit/M2 as info", () => {
+    const rowCount = 21;
+    const liquidityRows = Array.from({ length: rowCount }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      investor_deposit_million_krw: i === rowCount - 1 ? 32000 : 10000
+    }));
+    const creditRows = Array.from({ length: rowCount }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      credit_loan_million_krw: 1000,
+      total_credit_million_krw: 1100
+    }));
+    const indexRows = Array.from({ length: rowCount }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      market: "KOSPI",
+      close: 3000
+    }));
+    const marketCapRows = Array.from({ length: rowCount }, (_, i) => [
+      {
+        trade_date: engineDate(i + 1),
+        market: "KOSPI",
+        market_cap_million_krw: i === rowCount - 1 ? 1_200_000 : 200_000
+      },
+      {
+        trade_date: engineDate(i + 1),
+        market: "KOSDAQ",
+        market_cap_million_krw: i === rowCount - 1 ? 1_000_000 : 100_000
+      }
+    ]).flat();
+
+    const result = calculateMarketRiskEngine({
+      liquidityRows,
+      creditRows,
+      cmaRows: [],
+      indexRows,
+      flowRows: [],
+      marketCapRows,
+      m2Rows: [{ trade_date: "2026-01-01", source_time: "202601", m2_billion_krw: 1_000 }]
+    });
+
+    const latestRisk = result.risks.at(-1);
+    expect(latestRisk?.liquidity_score).toBeGreaterThanOrEqual(10);
+    expect(result.signals.some((signal) => signal.signal_type === "deposit_to_m2_ratio_high" && signal.score_delta === 0)).toBe(true);
+    expect(result.signals.some((signal) => signal.signal_type === "deposit_to_market_cap_ratio_weak")).toBe(true);
+    expect(result.signals.some((signal) => signal.signal_type === "deposit_to_market_cap_ratio_falling")).toBe(true);
+  });
+
+  it("does not raise risk when deposit/M2 is high but support and leverage are healthy", () => {
+    const rowCount = 12;
+    const liquidityRows = Array.from({ length: rowCount }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      investor_deposit_million_krw: 32000
+    }));
+    const creditRows = Array.from({ length: rowCount }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      credit_loan_million_krw: 1000,
+      total_credit_million_krw: 1100
+    }));
+    const indexRows = Array.from({ length: rowCount }, (_, i) => ({
+      trade_date: engineDate(i + 1),
+      market: "KOSPI",
+      close: 3000
+    }));
+    const marketCapRows = Array.from({ length: rowCount }, (_, i) => [
+      {
+        trade_date: engineDate(i + 1),
+        market: "KOSPI",
+        market_cap_million_krw: 300_000
+      },
+      {
+        trade_date: engineDate(i + 1),
+        market: "KOSDAQ",
+        market_cap_million_krw: 200_000
+      }
+    ]).flat();
+
+    const result = calculateMarketRiskEngine({
+      liquidityRows,
+      creditRows,
+      cmaRows: [],
+      indexRows,
+      flowRows: [],
+      marketCapRows,
+      m2Rows: [{ trade_date: "2026-01-01", source_time: "202601", m2_billion_krw: 1_000 }]
+    });
+
+    const latestRisk = result.risks.at(-1);
+    expect(latestRisk?.liquidity_score).toBe(0);
+    expect(result.signals.some((signal) => signal.signal_type === "deposit_to_m2_ratio_high" && signal.score_delta === 0)).toBe(true);
+  });
+});
+
 describe("market top fragility scoring", () => {
   const engineDate = (day: number): string => {
     const d = new Date(Date.UTC(2026, 0, day));
