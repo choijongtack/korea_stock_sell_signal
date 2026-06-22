@@ -55,8 +55,8 @@ export function RiskSummaryCard({ totalScore, riskLevel, summary }: RiskSummaryC
             <AlertTriangle className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-900">Market Risk Score</p>
-            <p className="text-xs text-slate-500">종합 매도 위험도</p>
+            <p className="text-sm font-semibold text-slate-900">KOSPI 위험 상태 지수</p>
+            <p className="text-xs text-slate-500">현재 KOSPI 약세 상태와 동행하는 위험 점수</p>
           </div>
         </div>
         <details className="relative">
@@ -64,14 +64,14 @@ export function RiskSummaryCard({ totalScore, riskLevel, summary }: RiskSummaryC
             <Info className="h-4 w-4" />
           </summary>
           <div className="absolute right-0 z-10 mt-2 w-72 rounded-lg border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-700 shadow-lg">
-            0~19 안정, 20~39 주의, 40~59 경고, 60~84 위험, 85~100 위기 기준으로 계산됩니다.
+            0~39 안정, 40~59 주의, 60~74 경고, 75~89 위험, 90~100 위기 기준입니다. 미래 예측이 아니라 현재 위험 상태를 나타냅니다.
           </div>
         </details>
       </div>
 
       <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-end gap-3">
-          <p className="text-6xl font-bold tracking-tight text-slate-950">{totalScore}</p>
+          <p className="text-6xl font-bold tracking-tight text-slate-950">{Math.round(totalScore)}</p>
           <p className="pb-2 text-lg font-semibold text-slate-600">/ 100</p>
         </div>
         <div className={`inline-flex rounded-full px-3 py-1.5 text-sm font-semibold ring-1 ${tone.badge}`}>

@@ -58,21 +58,21 @@ export function RiskScoreTrendChart({ data }: RiskScoreTrendChartProps) {
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold text-slate-950">Risk Score Trend</h2>
-          <p className="text-xs text-slate-500">Market risk daily trend (0 to 100)</p>
+          <h2 className="text-lg font-semibold text-slate-950">KOSPI 위험 상태 지수 추이</h2>
+          <p className="text-xs text-slate-500">현재 KOSPI 약세 상태와 동행하는 위험 점수 (0 to 100)</p>
         </div>
         {latest ? (
           <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-            Latest: {latest.tradeDate} / {latest.totalScore}
+            Latest: {latest.tradeDate} / {Math.round(latest.totalScore)}
           </span>
         ) : null}
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
-        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">0-19 안정</span>
-        <span className="inline-flex items-center rounded-full bg-lime-50 px-2.5 py-1 text-[11px] font-semibold text-lime-700 ring-1 ring-lime-200">20-39 주의</span>
-        <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">40-59 경고</span>
-        <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-800 ring-1 ring-orange-200">60-84 위험</span>
-        <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 ring-1 ring-red-200">85-100 위기</span>
+        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">0-39 안정</span>
+        <span className="inline-flex items-center rounded-full bg-lime-50 px-2.5 py-1 text-[11px] font-semibold text-lime-700 ring-1 ring-lime-200">40-59 주의</span>
+        <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">60-74 경고</span>
+        <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-800 ring-1 ring-orange-200">75-89 위험</span>
+        <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 ring-1 ring-red-200">90-100 위기</span>
       </div>
 
       <div ref={chartRef} className="mt-4 h-64 min-w-0 sm:h-72 md:h-80">
@@ -88,12 +88,12 @@ export function RiskScoreTrendChart({ data }: RiskScoreTrendChartProps) {
               <YAxis domain={[0, 100]} tick={{ fontSize: isMobile ? 10 : 12 }} width={isMobile ? 36 : 42} />
               <Tooltip
                 contentStyle={{ border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }}
-                formatter={(value) => [`${value ?? "-"}`, "Risk score"]}
+                formatter={(value) => [`${value ?? "-"}`, "KOSPI risk state score"]}
               />
-              <ReferenceLine y={20} stroke="#84cc16" strokeDasharray="3 3" />
-              <ReferenceLine y={40} stroke="#f59e0b" strokeDasharray="3 3" />
-              <ReferenceLine y={60} stroke="#f97316" strokeDasharray="3 3" />
-              <ReferenceLine y={85} stroke="#ef4444" strokeDasharray="3 3" />
+              <ReferenceLine y={40} stroke="#84cc16" strokeDasharray="3 3" />
+              <ReferenceLine y={60} stroke="#f59e0b" strokeDasharray="3 3" />
+              <ReferenceLine y={75} stroke="#f97316" strokeDasharray="3 3" />
+              <ReferenceLine y={90} stroke="#ef4444" strokeDasharray="3 3" />
               <Line type="monotone" dataKey="totalScore" stroke="#0f172a" strokeWidth={2} dot={false} />
               <Line
                 type="linear"
@@ -118,7 +118,7 @@ export function RiskScoreTrendChart({ data }: RiskScoreTrendChartProps) {
             </LineChart>
           ) : (
             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-300 text-sm text-slate-500">
-              No risk score history yet.
+              No KOSPI risk state history yet.
             </div>
           )
         ) : (

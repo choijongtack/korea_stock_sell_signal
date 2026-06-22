@@ -1,6 +1,6 @@
 import "server-only";
 import { getSupabaseReadClient } from "./supabaseAdmin";
-import type { InvestorFlowDaily, MarketCapDaily, MarketCmaDaily, MarketCreditBalanceDaily, MarketIndexDaily, MarketLiquidityDaily, MarketM2Monthly, MarketRiskScore, SignalEvent } from "@/types/market";
+import type { InvestorFlowDaily, MarketBreadthDaily, MarketCapDaily, MarketCmaDaily, MarketCreditBalanceDaily, MarketIndexDaily, MarketLiquidityDaily, MarketM2Monthly, MarketRiskScore, SignalEvent } from "@/types/market";
 
 const SUPABASE_PAGE_SIZE = 1000;
 
@@ -227,6 +227,34 @@ export async function fetchMarketCapDaily(): Promise<MarketCapDaily[]> {
   }));
 }
 
+export async function fetchMarketBreadthDaily(): Promise<MarketBreadthDaily[]> {
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+  const { data, error } = await fetchPagedRows((from, to) =>
+    supabase.from("market_breadth_daily").select("*").order("trade_date", { ascending: true }).range(from, to)
+  );
+
+  if (error) {
+    console.error("Failed to fetch market_breadth_daily:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    tradeDate: row.trade_date,
+    market: row.market,
+    advancers: row.advancers ?? null,
+    decliners: row.decliners ?? null,
+    unchanged: row.unchanged ?? null,
+    tradingValueMillionKrw: row.trading_value_million_krw ?? null,
+    createdAt: row.created_at ?? new Date().toISOString()
+  }));
+}
+
 export async function fetchMarketM2Monthly(): Promise<MarketM2Monthly[]> {
   let supabase;
   try {
@@ -334,6 +362,52 @@ export async function fetchMarketRiskDailySeries(): Promise<
     totalScore: row.total_score ?? 0,
     riskLevel: row.risk_level ?? "stable",
     summary: row.summary ?? null
+  }));
+}
+
+export async function fetchKospiRiskStateDailySeries(modelVersion = "kospi_corr_state_v1"): Promise<
+  Array<{
+    tradeDate: string;
+    totalScore: number;
+    riskLevel: "stable" | "caution" | "warning" | "danger" | "crisis";
+    summary: string | null;
+    kospiReturn20d: number | null;
+    kospiForwardReturn5d: number | null;
+    kospiForwardReturn20d: number | null;
+    components: Record<string, number>;
+  }>
+> {
+  let supabase;
+  try {
+    supabase = getSupabaseReadClient();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+
+  const { data, error } = await fetchPagedRows((from, to) =>
+    supabase
+      .from("kospi_risk_state_daily")
+      .select("trade_date,risk_score,risk_level,summary,kospi_return_20d,kospi_forward_return_5d,kospi_forward_return_20d,components")
+      .eq("model_version", modelVersion)
+      .order("trade_date", { ascending: true })
+      .range(from, to)
+  );
+
+  if (error) {
+    console.error("Failed to fetch kospi_risk_state_daily series:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    tradeDate: row.trade_date,
+    totalScore: row.risk_score ?? 0,
+    riskLevel: row.risk_level ?? "stable",
+    summary: row.summary ?? null,
+    kospiReturn20d: row.kospi_return_20d ?? null,
+    kospiForwardReturn5d: row.kospi_forward_return_5d ?? null,
+    kospiForwardReturn20d: row.kospi_forward_return_20d ?? null,
+    components: row.components ?? {}
   }));
 }
 

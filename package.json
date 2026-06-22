@@ -5,7 +5,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "risk:model": "node scripts/kospi-risk-model.mjs",
+    "risk:model:json": "node scripts/kospi-risk-model.mjs --json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

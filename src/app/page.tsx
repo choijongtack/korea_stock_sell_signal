@@ -5,18 +5,17 @@ import { RiskNormalizedCompareChart } from "@/components/RiskNormalizedCompareCh
 import { RiskScoreTrendChart } from "@/components/RiskScoreTrendChart";
 import { RiskSummaryCard } from "@/components/RiskSummaryCard";
 import { SignalChecklist } from "@/components/SignalChecklist";
-import { RunRiskButton } from "@/components/RunRiskButton";
-import { buildMarketRiskSeries, calculateMarketRisk } from "@/lib/calculateMarketRisk";
+import { buildKospiRiskStateSeries } from "@/lib/kospiRiskStateModel";
 import {
   fetchMarketLiquidityDaily,
   fetchMarketIndexDaily,
   fetchInvestorFlowDaily,
   fetchMarketCreditBalanceDaily,
   fetchMarketCmaDaily,
+  fetchMarketBreadthDaily,
   fetchMarketCapDaily,
   fetchMarketM2Monthly,
-  fetchMarketRiskDailySeries,
-  fetchLatestMarketRiskDaily,
+  fetchKospiRiskStateDailySeries,
   fetchLatestSignalEvents
 } from "@/lib/fetchMarketData";
 
@@ -38,10 +37,10 @@ export default async function HomePage({
   const flowData = await fetchInvestorFlowDaily();
   const creditData = await fetchMarketCreditBalanceDaily();
   const cmaData = await fetchMarketCmaDaily();
+  const breadthData = await fetchMarketBreadthDaily();
   const marketCapData = await fetchMarketCapDaily();
   const m2Data = await fetchMarketM2Monthly();
-  const savedRiskSeries = await fetchMarketRiskDailySeries();
-  const latestRiskRow = await fetchLatestMarketRiskDaily();
+  const savedKospiRiskSeries = await fetchKospiRiskStateDailySeries();
   const latestSignals = await fetchLatestSignalEvents();
 
   const params = await searchParams;
@@ -52,6 +51,7 @@ export default async function HomePage({
   const filteredFlow = takeRange(flowData, range);
   const filteredCredit = takeRange(creditData, range);
   const filteredCma = takeRange(cmaData, range);
+  const filteredBreadth = takeRange(breadthData, range);
 
   const marketCapByDate = new Map<string, number>();
   marketCapData.forEach((row) => {
@@ -72,9 +72,6 @@ export default async function HomePage({
     }
     return matched;
   };
-
-  const risk = calculateMarketRisk(filteredLiquidity, filteredIndex, filteredFlow, filteredCredit);
-  const cardRisk = latestRiskRow ?? { totalScore: risk.totalScore, riskLevel: risk.riskLevel, summary: null };
 
   const liquiditySeries = filteredLiquidity.map((row) => ({
     tradeDate: row.tradeDate,
@@ -175,22 +172,34 @@ export default async function HomePage({
     };
   });
 
-  const calculatedRiskSeries = buildMarketRiskSeries({
-    liquidityRows: filteredLiquidity,
-    creditRows: filteredCredit,
-    cmaRows: filteredCma,
-    indexRows: filteredIndex,
-    flowRows: filteredFlow
-  });
-
-  const riskSeriesBase = (savedRiskSeries.length > 0 ? savedRiskSeries : calculatedRiskSeries).map((row) => ({
+  const calculatedRiskSeries = buildKospiRiskStateSeries({
+    liquidityRows: liquidityData,
+    creditRows: creditData,
+    cmaRows: cmaData,
+    indexRows: indexData,
+    flowRows: flowData,
+    breadthRows: breadthData,
+    marketCapRows: marketCapData,
+    m2Rows: m2Data
+  }).map((row) => ({
     tradeDate: row.tradeDate,
     totalScore: row.totalScore,
-    riskLevel: row.riskLevel
+    riskLevel: row.riskLevel,
+    summary: row.summary,
+    kospiReturn20d: row.kospiReturn20d,
+    kospiForwardReturn5d: null,
+    kospiForwardReturn20d: null,
+    components: row.components
   }));
+  const riskSeriesBase = savedKospiRiskSeries.length > 0 ? savedKospiRiskSeries : calculatedRiskSeries;
   const riskSeries = takeRange(riskSeriesBase, range);
+  const cardRisk = riskSeriesBase.at(-1) ?? {
+    totalScore: 0,
+    riskLevel: "stable" as const,
+    summary: "KOSPI 위험 상태 지수를 계산할 데이터가 아직 부족합니다."
+  };
 
-  const description = `실제 데이터 | 유동성: ${filteredLiquidity.length}건, 신용잔고: ${filteredCredit.length}건, CMA: ${filteredCma.length}건, 지수: ${filteredIndex.length}건, 투자자 수급: ${filteredFlow.length}건`;
+  const description = `실제 데이터 | 유동성: ${filteredLiquidity.length}건, 신용잔고: ${filteredCredit.length}건, CMA: ${filteredCma.length}건, 지수: ${filteredIndex.length}건, 투자자 수급: ${filteredFlow.length}건, 시장폭: ${filteredBreadth.length}건`;
 
   return (
     <AppLayout title="한국 증시 매도 위험 대시보드" description={description}>
@@ -214,7 +223,7 @@ export default async function HomePage({
             </Link>
           </div>
         </div>
-        <RunRiskButton />
+        <span className="text-sm font-medium text-slate-600">KOSPI 위험 상태 지수 모델</span>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
