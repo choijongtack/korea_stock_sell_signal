@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Activity, BarChart3, Database, FlaskConical, LineChart, PieChart } from "lucide-react";
+import { Activity, BarChart3, Database, FlaskConical, LineChart, PieChart, RefreshCw } from "lucide-react";
 import { MarketAdviceChat } from "@/components/MarketAdviceChat";
 
 interface AppLayoutProps {
@@ -15,6 +15,7 @@ interface AppLayoutProps {
 const navItems = [
   { href: "/", label: "Dashboard", icon: Activity },
   { href: "/upload", label: "Upload", icon: Database, adminOnly: true },
+  { href: "/admin/risk", label: "Risk Update", icon: RefreshCw, adminOnly: true },
   { href: "/signals", label: "Signals", icon: LineChart },
   { href: "/portfolio", label: "Portfolio", icon: PieChart },
   { href: "/backtest", label: "Backtest", icon: FlaskConical, adminOnly: true }

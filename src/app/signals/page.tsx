@@ -4,7 +4,6 @@ import { SignalChecklist } from "@/components/SignalChecklist";
 import { buildKospiRiskStateSeries } from "@/lib/kospiRiskStateModel";
 import {
   fetchInvestorFlowDaily,
-  fetchLatestSignalEvents,
   fetchMarketBreadthDaily,
   fetchMarketCapDaily,
   fetchMarketCmaDaily,
@@ -18,7 +17,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function SignalsPage() {
-  const [liquidityData, indexData, flowData, creditData, cmaData, breadthData, marketCapData, m2Data, savedRiskSeries, latestSignals] = await Promise.all([
+  const [liquidityData, indexData, flowData, creditData, cmaData, breadthData, marketCapData, m2Data, savedRiskSeries] = await Promise.all([
     fetchMarketLiquidityDaily(),
     fetchMarketIndexDaily(),
     fetchInvestorFlowDaily(),
@@ -27,8 +26,7 @@ export default async function SignalsPage() {
     fetchMarketBreadthDaily(),
     fetchMarketCapDaily(),
     fetchMarketM2Monthly(),
-    fetchKospiRiskStateDailySeries(),
-    fetchLatestSignalEvents()
+    fetchKospiRiskStateDailySeries()
   ]);
 
   const calculatedRiskSeries = buildKospiRiskStateSeries({
@@ -46,14 +44,15 @@ export default async function SignalsPage() {
     tradeDate: null,
     totalScore: 0,
     riskLevel: "stable" as const,
-    summary: "KOSPI 위험 상태 지수를 계산할 데이터가 아직 부족합니다."
+    summary: "KOSPI 위험 상태 지수를 계산할 데이터가 아직 부족합니다.",
+    components: {}
   };
 
   return (
-    <AppLayout title="위험 신호" description="KOSPI 위험 상태 지수와 최신 시장 신호를 확인합니다.">
+    <AppLayout title="위험 신호" description="KOSPI 위험 상태 지수와 최신 구성 요인을 확인합니다.">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-        <RiskSummaryCard totalScore={latestRisk.totalScore} riskLevel={latestRisk.riskLevel} summary={latestRisk.summary ?? null} />
-        <SignalChecklist signals={latestSignals} />
+        <RiskSummaryCard totalScore={latestRisk.totalScore} riskLevel={latestRisk.riskLevel} summary={latestRisk.summary ?? null} components={latestRisk.components} showDetails />
+        <SignalChecklist riskState={latestRisk} />
       </div>
     </AppLayout>
   );

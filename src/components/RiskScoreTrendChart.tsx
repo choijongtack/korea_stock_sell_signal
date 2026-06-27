@@ -99,9 +99,10 @@ export function RiskScoreTrendChart({ data }: RiskScoreTrendChartProps) {
                 type="linear"
                 dataKey="totalScore"
                 stroke="transparent"
-                dot={({ cx, cy, index }) => {
-                  if (!Number.isFinite(cx) || !Number.isFinite(cy) || index == null) return null;
-                  const row = data[index];
+                dot={({ cx, cy, index, payload }) => {
+                  if (!Number.isFinite(cx) || !Number.isFinite(cy)) return null;
+                  const row = (payload as { riskLevel?: RiskLevel } | undefined) ?? (typeof index === "number" ? data[index] : undefined);
+                  if (!row?.riskLevel) return null;
                   return <circle cx={cx} cy={cy} r={2.75} fill={levelColor[row.riskLevel] ?? "#64748b"} />;
                 }}
                 isAnimationActive={false}

@@ -4,7 +4,6 @@ import { LiquidityChart } from "@/components/LiquidityChart";
 import { RiskNormalizedCompareChart } from "@/components/RiskNormalizedCompareChart";
 import { RiskScoreTrendChart } from "@/components/RiskScoreTrendChart";
 import { RiskSummaryCard } from "@/components/RiskSummaryCard";
-import { SignalChecklist } from "@/components/SignalChecklist";
 import { buildKospiRiskStateSeries } from "@/lib/kospiRiskStateModel";
 import {
   fetchMarketLiquidityDaily,
@@ -15,8 +14,7 @@ import {
   fetchMarketBreadthDaily,
   fetchMarketCapDaily,
   fetchMarketM2Monthly,
-  fetchKospiRiskStateDailySeries,
-  fetchLatestSignalEvents
+  fetchKospiRiskStateDailySeries
 } from "@/lib/fetchMarketData";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +23,14 @@ type RangeFilter = "all" | "last5";
 
 const clampRangeFilter = (value: string | undefined): RangeFilter => (value === "last5" ? "last5" : "all");
 
-const takeRange = <T,>(rows: T[], range: RangeFilter): T[] => (range === "last5" ? rows.slice(-5) : rows);
+const takeRange = <T extends { tradeDate: string }>(rows: T[], range: RangeFilter): T[] => {
+  if (range === "all") return rows;
+  const recentDates = Array.from(new Set(rows.map((row) => row.tradeDate)))
+    .sort((a, b) => a.localeCompare(b))
+    .slice(-5);
+  const recentDateSet = new Set(recentDates);
+  return rows.filter((row) => recentDateSet.has(row.tradeDate));
+};
 
 export default async function HomePage({
   searchParams
@@ -41,7 +46,6 @@ export default async function HomePage({
   const marketCapData = await fetchMarketCapDaily();
   const m2Data = await fetchMarketM2Monthly();
   const savedKospiRiskSeries = await fetchKospiRiskStateDailySeries();
-  const latestSignals = await fetchLatestSignalEvents();
 
   const params = await searchParams;
   const range = clampRangeFilter(params?.range);
@@ -196,7 +200,8 @@ export default async function HomePage({
   const cardRisk = riskSeriesBase.at(-1) ?? {
     totalScore: 0,
     riskLevel: "stable" as const,
-    summary: "KOSPI 위험 상태 지수를 계산할 데이터가 아직 부족합니다."
+    summary: "KOSPI 위험 상태 지수를 계산할 데이터가 아직 부족합니다.",
+    components: {}
   };
 
   const description = `실제 데이터 | 유동성: ${filteredLiquidity.length}건, 신용잔고: ${filteredCredit.length}건, CMA: ${filteredCma.length}건, 지수: ${filteredIndex.length}건, 투자자 수급: ${filteredFlow.length}건, 시장폭: ${filteredBreadth.length}건`;
@@ -205,7 +210,7 @@ export default async function HomePage({
     <AppLayout title="한국 증시 매도 위험 대시보드" description={description}>
       <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-slate-700">표시 구간</span>
+          <span className="text-sm font-semibold text-slate-700">차트 표시 범위</span>
           <div className="flex rounded-lg bg-slate-100 p-1">
             <Link
               href="/"
@@ -219,31 +224,28 @@ export default async function HomePage({
               href="/?range=last5"
               className={`rounded-md px-3 py-1.5 text-sm font-semibold ${range === "last5" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950"}`}
             >
-              최근 5건
+              최근 5거래일
             </Link>
           </div>
         </div>
         <span className="text-sm font-medium text-slate-600">KOSPI 위험 상태 지수 모델</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="min-w-0 space-y-4">
-          <RiskSummaryCard totalScore={cardRisk.totalScore} riskLevel={cardRisk.riskLevel} summary={cardRisk.summary ?? null} />
-          <RiskScoreTrendChart data={riskSeries} />
-          <RiskNormalizedCompareChart riskSeries={riskSeries} indexSeries={indexSeries} />
-          <LiquidityChart
-            data={{
-              liquidity: liquiditySeries,
-              credit: creditSeries,
-              cma: cmaSeries,
-              index: indexSeries,
-              flow: flowSeries,
-              m2MarketCap: m2MarketCapSeries,
-              liquidityRatio: liquidityRatioSeries
-            }}
-          />
-        </div>
-        <SignalChecklist signals={latestSignals} />
+      <div className="space-y-4">
+        <RiskSummaryCard totalScore={cardRisk.totalScore} riskLevel={cardRisk.riskLevel} summary={cardRisk.summary ?? null} components={cardRisk.components} />
+        <RiskScoreTrendChart data={riskSeries} />
+        <RiskNormalizedCompareChart riskSeries={riskSeries} indexSeries={indexSeries} />
+        <LiquidityChart
+          data={{
+            liquidity: liquiditySeries,
+            credit: creditSeries,
+            cma: cmaSeries,
+            index: indexSeries,
+            flow: flowSeries,
+            m2MarketCap: m2MarketCapSeries,
+            liquidityRatio: liquidityRatioSeries
+          }}
+        />
       </div>
     </AppLayout>
   );
