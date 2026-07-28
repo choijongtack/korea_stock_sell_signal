@@ -1,0 +1,44 @@
+- generic [active] [ref=f6e1]:
+  - main [ref=f6e2]:
+    - generic [ref=f6e3]:
+      - generic [ref=f6e4]:
+        - generic [ref=f6e7]:
+          - generic [ref=f6e8]: Korea Market Monitor
+          - heading "데이터 업로드" [level=1] [ref=f6e11]
+          - paragraph [ref=f6e12]: CSV/Excel 파일을 업로드하고 정규화 후 저장합니다.
+        - navigation [ref=f6e13]:
+          - link "Dashboard" [ref=f6e14] [cursor=pointer]:
+            - /url: /
+          - link "Signals" [ref=f6e17] [cursor=pointer]:
+            - /url: /signals
+          - link "Portfolio" [ref=f6e21] [cursor=pointer]:
+            - /url: /portfolio
+      - generic [ref=f6e25]:
+        - heading "Data Upload" [level=2] [ref=f6e26]
+        - paragraph [ref=f6e27]: Upload CSV or Excel and preview data. Market index auto sync uses KRX.
+        - generic [ref=f6e28]:
+          - generic [ref=f6e29]:
+            - text: Auto sync days
+            - spinbutton "Auto sync days" [ref=f6e30]: "180"
+          - button "Load upload summary" [ref=f6e31] [cursor=pointer]
+        - generic [ref=f6e32]:
+          - generic [ref=f6e33]:
+            - generic [ref=f6e34]: Data Type
+            - combobox "Data Type" [ref=f6e35]:
+              - option "KOFIA market liquidity" [selected]
+              - option "KOFIA credit balance"
+              - option "KOFIA CMA"
+              - option "KRX market index"
+              - option "KIS investor flow"
+              - option "ECOS M2 money supply"
+              - option "KRX market cap"
+          - generic [ref=f6e36]:
+            - generic [ref=f6e37]: File
+            - button "File" [ref=f6e38]
+        - button "Save to Supabase" [disabled] [ref=f6e40]
+        - generic [ref=f6e41]:
+          - button "Auto Sync KOFIA market liquidity" [ref=f6e42] [cursor=pointer]
+          - button "Backfill older KOFIA market liquidity" [ref=f6e43] [cursor=pointer]
+          - button "Update newer KOFIA market liquidity" [ref=f6e44] [cursor=pointer]
+    - button "AI 상담" [ref=f6e46] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f6e54] [cursor=pointer]

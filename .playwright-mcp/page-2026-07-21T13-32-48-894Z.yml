@@ -1,0 +1,44 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e7]:
+          - generic [ref=e8]: Korea Market Monitor
+          - heading "데이터 업로드" [level=1] [ref=e11]
+          - paragraph [ref=e12]: CSV/Excel 파일을 업로드하고 정규화 후 저장합니다.
+        - navigation [ref=e13]:
+          - link "Dashboard" [ref=e14] [cursor=pointer]:
+            - /url: /
+          - link "Signals" [ref=e17] [cursor=pointer]:
+            - /url: /signals
+          - link "Portfolio" [ref=e21] [cursor=pointer]:
+            - /url: /portfolio
+      - generic [ref=e25]:
+        - heading "Data Upload" [level=2] [ref=e26]
+        - paragraph [ref=e27]: Upload CSV or Excel and preview data. Market index auto sync uses KRX.
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - text: Auto sync days
+            - spinbutton "Auto sync days" [ref=e30]: "180"
+          - button "Load upload summary" [ref=e31] [cursor=pointer]
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - generic [ref=e34]: Data Type
+            - combobox "Data Type" [ref=e35]:
+              - option "KOFIA market liquidity" [selected]
+              - option "KOFIA credit balance"
+              - option "KOFIA CMA"
+              - option "KRX market index"
+              - option "KIS investor flow"
+              - option "ECOS M2 money supply"
+              - option "KRX market cap"
+          - generic [ref=e36]:
+            - generic [ref=e37]: File
+            - button "File" [ref=e38]
+        - button "Save to Supabase" [disabled] [ref=e40]
+        - generic [ref=e41]:
+          - button "Auto Sync KOFIA market liquidity" [ref=e42] [cursor=pointer]
+          - button "Backfill older KOFIA market liquidity" [ref=e43] [cursor=pointer]
+          - button "Update newer KOFIA market liquidity" [ref=e44] [cursor=pointer]
+    - button "AI 상담" [ref=e46] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e54] [cursor=pointer]

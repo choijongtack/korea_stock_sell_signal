@@ -107,31 +107,41 @@ async function fetchRows(apiId: string, market: Market, basDd: string, apiGroup:
   if (!apiId) return { rows: [], warning: `${market} KRX API ID is missing.` };
 
   const candidates = [
-    { method: "POST", url: `${base}/svc/apis/${apiGroup}/${apiId}` },
-    { method: "POST", url: `${base}/svc/sample/apis/${apiGroup}/${apiId}` },
     { method: "GET", url: `${base}/svc/apis/${apiGroup}/${apiId}?basDd=${basDd}` },
-    { method: "GET", url: `${base}/svc/sample/apis/${apiGroup}/${apiId}?basDd=${basDd}` }
+    { method: "POST", url: `${base}/svc/apis/${apiGroup}/${apiId}` },
+    { method: "GET", url: `${base}/svc/sample/apis/${apiGroup}/${apiId}?basDd=${basDd}` },
+    { method: "POST", url: `${base}/svc/sample/apis/${apiGroup}/${apiId}` }
   ] as const;
   const failures: string[] = [];
 
   for (const candidate of candidates) {
-    const res = await fetch(candidate.url, {
-      method: candidate.method,
-      headers:
-        candidate.method === "POST"
-          ? { AUTH_KEY: key, "Content-Type": "application/json", Accept: "application/json" }
-          : { AUTH_KEY: key, Accept: "application/json" },
-      body: candidate.method === "POST" ? JSON.stringify({ basDd }) : undefined,
-      cache: "no-store"
-    });
-    if (!res.ok) {
-      failures.push(`${candidate.method} ${new URL(candidate.url).pathname} ${res.status}`);
-      continue;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const res = await fetch(candidate.url, {
+        method: candidate.method,
+        headers:
+          candidate.method === "POST"
+            ? { AUTH_KEY: key, "Content-Type": "application/json", Accept: "application/json" }
+            : { AUTH_KEY: key, Accept: "application/json" },
+        body: candidate.method === "POST" ? JSON.stringify({ basDd }) : undefined,
+        cache: "no-store",
+        signal: controller.signal
+      });
+      if (!res.ok) {
+        failures.push(`${candidate.method} ${new URL(candidate.url).pathname} ${res.status}`);
+        continue;
+      }
+      const json = (await res.json().catch(() => null)) as { OutBlock_1?: Record<string, unknown>[] } | null;
+      const rows = json?.OutBlock_1 ?? [];
+      if (rows.length > 0) return { rows };
+      failures.push(`${candidate.method} ${new URL(candidate.url).pathname} empty`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "request failed";
+      failures.push(`${candidate.method} ${new URL(candidate.url).pathname} ${message}`);
+    } finally {
+      clearTimeout(timeout);
     }
-    const json = (await res.json().catch(() => null)) as { OutBlock_1?: Record<string, unknown>[] } | null;
-    const rows = json?.OutBlock_1 ?? [];
-    if (rows.length > 0) return { rows };
-    failures.push(`${candidate.method} ${new URL(candidate.url).pathname} empty`);
   }
 
   return { rows: [], warning: failures.join(" ; ") };
@@ -242,7 +252,7 @@ export async function syncKrxIndexDaily(lastDays = 180): Promise<SyncSummary> {
     for (const market of ["KOSPI", "KOSDAQ", "KOSPI200"] as const) {
       const apiId = apiIdForIndex(market);
       if (!apiId) continue;
-      const { rows, warning } = await fetchRows(apiId, market, ymd, "idx");
+      const { rows, warning } = await fetchIndexRowsFast(apiId, market, ymd);
       if (rows.length === 0) {
         warnings.push(`[${ymd}] ${market} index rows not found.${warning ? ` ${warning}` : ""}`);
         continue;
@@ -294,7 +304,7 @@ export async function syncKrxIndexBackfill(lastDays = 180): Promise<SyncSummary>
     for (const market of ["KOSPI", "KOSDAQ", "KOSPI200"] as const) {
       const apiId = apiIdForIndex(market);
       if (!apiId) continue;
-      const { rows, warning } = await fetchRows(apiId, market, ymd, "idx");
+      const { rows, warning } = await fetchIndexRowsFast(apiId, market, ymd);
       if (rows.length === 0) {
         warnings.push(`[${ymd}] ${market} index rows not found.${warning ? ` ${warning}` : ""}`);
         continue;
@@ -342,7 +352,7 @@ export async function syncKrxIndexUpdate(lastDays = 180): Promise<SyncSummary> {
     for (const market of ["KOSPI", "KOSDAQ", "KOSPI200"] as const) {
       const apiId = apiIdForIndex(market);
       if (!apiId) continue;
-      const { rows, warning } = await fetchRows(apiId, market, ymd, "idx");
+      const { rows, warning } = await fetchIndexRowsFast(apiId, market, ymd);
       if (rows.length === 0) {
         warnings.push(`[${ymd}] ${market} index rows not found.${warning ? ` ${warning}` : ""}`);
         continue;

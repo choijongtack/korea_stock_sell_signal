@@ -1,0 +1,51 @@
+- generic [active] [ref=f2e1]:
+  - main [ref=f2e2]:
+    - generic [ref=f2e3]:
+      - generic [ref=f2e4]:
+        - generic [ref=f2e7]:
+          - generic [ref=f2e8]: Korea Market Monitor
+          - heading "데이터 업로드" [level=1] [ref=f2e11]
+          - paragraph [ref=f2e12]: CSV/Excel 파일을 업로드하고 정규화 후 저장합니다.
+        - navigation [ref=f2e13]:
+          - link "Dashboard" [ref=f2e14] [cursor=pointer]:
+            - /url: /
+          - link "Upload" [ref=f2e58] [cursor=pointer]:
+            - /url: /upload
+          - link "Risk Update" [ref=f2e63] [cursor=pointer]:
+            - /url: /admin/risk
+          - link "Signals" [ref=f2e17] [cursor=pointer]:
+            - /url: /signals
+          - link "Portfolio" [ref=f2e21] [cursor=pointer]:
+            - /url: /portfolio
+          - link "Backtest" [ref=f2e69] [cursor=pointer]:
+            - /url: /backtest
+      - generic [ref=f2e25]:
+        - heading "Data Upload" [level=2] [ref=f2e26]
+        - paragraph [ref=f2e27]: Upload CSV or Excel and preview data. Market index auto sync uses KRX.
+        - generic [ref=f2e28]:
+          - generic [ref=f2e29]:
+            - text: Auto sync days
+            - spinbutton "Auto sync days" [ref=f2e30]: "1"
+          - button "Load upload summary" [disabled] [ref=f2e31]
+        - generic [ref=f2e32]:
+          - generic [ref=f2e33]:
+            - generic [ref=f2e34]: Data Type
+            - combobox "Data Type" [ref=f2e35]:
+              - option "KOFIA market liquidity"
+              - option "KOFIA credit balance"
+              - option "KOFIA CMA"
+              - option "KRX market index" [selected]
+              - option "KIS investor flow"
+              - option "ECOS M2 money supply"
+              - option "KRX market cap"
+          - generic [ref=f2e36]:
+            - generic [ref=f2e37]: File
+            - button "File" [ref=f2e38]
+        - button "Save to Supabase" [disabled] [ref=f2e40]
+        - generic [ref=f2e73]:
+          - button "Syncing..." [disabled] [ref=f2e77]
+          - button "Syncing..." [disabled] [ref=f2e78]
+          - button "Syncing..." [disabled] [ref=f2e79]
+    - button "AI 상담" [ref=f2e46] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f2e54] [cursor=pointer]
+  - alert [ref=f2e72]

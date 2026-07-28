@@ -1,0 +1,131 @@
+- generic [ref=f4e2]:
+  - generic:
+    - link "메뉴 바로가기" [ref=f4e3] [cursor=pointer]:
+      - /url: "#gnb"
+    - link "본문 바로가기" [ref=f4e4] [cursor=pointer]:
+      - /url: "#content"
+  - generic [ref=f4e5]:
+    - generic [ref=f4e7]:
+      - list [ref=f4e8]:
+        - listitem [ref=f4e9]:
+          - link "로그인" [ref=f4e10] [cursor=pointer]:
+            - /url: /contents/OPP/COMS/client/OPPCOMS001.cmd
+        - listitem [ref=f4e11]:
+          - link "회원가입" [ref=f4e12] [cursor=pointer]:
+            - /url: /contents/OPP/COMS/client/OPPCOMS002_S0.cmd
+      - link "KRX Data Marketplace" [ref=f4e13] [cursor=pointer]:
+        - /url: https://data.krx.co.kr/contents/MDC/MAIN/main/index.cmd
+    - generic [ref=f4e15]:
+      - heading [level=1] [ref=f4e16]:
+        - link [ref=f4e17] [cursor=pointer]:
+          - /url: /contents/OPP/MAIN/main/index.cmd
+          - img "KRX OPEN API" [ref=f4e18]
+          - text: KRX OPEN API
+      - list [ref=f4e19]:
+        - listitem [ref=f4e20]:
+          - link "서비스 소개" [ref=f4e21] [cursor=pointer]:
+            - /url: javascript:gotoMenu('/contents/OPP/INFO/OPPINFO001.jsp','OPP01');
+        - listitem [ref=f4e22]:
+          - link "서비스 이용" [ref=f4e23] [cursor=pointer]:
+            - /url: javascript:gotoMenu('/contents/OPP/USES/service/OPPUSES001_S1.cmd','OPP02');
+        - listitem [ref=f4e24]:
+          - link "소통의 창" [ref=f4e25] [cursor=pointer]:
+            - /url: javascript:gotoMenu('/contents/OPP/COMM/notice/OPPCOMM001_S1.cmd','OPP03');
+        - listitem [ref=f4e26]:
+          - link "데이터상품" [ref=f4e27] [cursor=pointer]:
+            - /url: javascript:gotoMenu('/contents/OPP/DATA/OPPDATA001.jsp','OPP04');
+        - listitem [ref=f4e28]:
+          - link "마이페이지" [ref=f4e29] [cursor=pointer]:
+            - /url: javascript:gotoMenu('/contents/OPP/MYPG/mypage/OPPMYPG001.cmd','OPP05');
+  - generic [ref=f4e31]:
+    - generic [ref=f4e33]:
+      - heading "서비스 이용" [level=2] [ref=f4e34]
+      - list [ref=f4e35]:
+        - listitem [ref=f4e36]: HOME
+        - listitem [ref=f4e37]: 서비스 이용
+        - listitem [ref=f4e38]: 지수
+    - generic [ref=f4e39]:
+      - list [ref=f4e41]:
+        - listitem [ref=f4e42]:
+          - link "지수" [ref=f4e43] [cursor=pointer]:
+            - /url: /contents/OPP/USES/service/OPPUSES001_S1.cmd
+        - listitem [ref=f4e44]:
+          - link "주식" [ref=f4e45] [cursor=pointer]:
+            - /url: /contents/OPP/USES/service/OPPUSES002_S1.cmd
+        - listitem [ref=f4e46]:
+          - link "증권상품" [ref=f4e47] [cursor=pointer]:
+            - /url: /contents/OPP/USES/service/OPPUSES003_S1.cmd
+        - listitem [ref=f4e48]:
+          - link "채권" [ref=f4e49] [cursor=pointer]:
+            - /url: /contents/OPP/USES/service/OPPUSES004_S1.cmd
+        - listitem [ref=f4e50]:
+          - link "파생상품" [ref=f4e51] [cursor=pointer]:
+            - /url: /contents/OPP/USES/service/OPPUSES005_S1.cmd
+        - listitem [ref=f4e52]:
+          - link "일반상품" [ref=f4e53] [cursor=pointer]:
+            - /url: /contents/OPP/USES/service/OPPUSES006_S1.cmd
+        - listitem [ref=f4e54]:
+          - link "ESG" [ref=f4e55] [cursor=pointer]:
+            - /url: /contents/OPP/USES/service/OPPUSES007_S1.cmd
+      - generic [ref=f4e56]:
+        - heading "지수" [level=4] [ref=f4e58]
+        - generic [ref=f4e59]:
+          - generic [ref=f4e61]:
+            - term [ref=f4e62]: 서비스명
+            - definition [ref=f4e63]: 지수 정보
+            - term [ref=f4e64]: 제공 API
+            - definition [ref=f4e65]: 5 API
+            - term [ref=f4e66]: 등록일
+            - definition [ref=f4e67]: 2020/09/15
+            - term [ref=f4e68]: 최근 수정일
+            - definition [ref=f4e69]: 2026/01/16
+            - term [ref=f4e70]: 제공 Format
+            - definition [ref=f4e71]: json, xml
+          - table [ref=f4e74]:
+            - rowgroup [ref=f4e79]:
+              - row [ref=f4e80]:
+                - columnheader "번호" [ref=f4e81]
+                - columnheader "API 명" [ref=f4e82]
+                - columnheader "API ID" [ref=f4e83]
+            - rowgroup [ref=f4e84]:
+              - row [ref=f4e85]:
+                - cell "1" [ref=f4e86]
+                - cell [ref=f4e87]:
+                  - link "KRX 시리즈 일별시세정보" [ref=f4e88] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - cell "krx_dd_trd" [ref=f4e89]
+              - row [ref=f4e90]:
+                - cell "2" [ref=f4e91]
+                - cell [ref=f4e92]:
+                  - link "KOSPI 시리즈 일별시세정보" [ref=f4e93] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - cell "kospi_dd_trd" [ref=f4e94]
+              - row [ref=f4e95]:
+                - cell "3" [ref=f4e96]
+                - cell [ref=f4e97]:
+                  - link "KOSDAQ 시리즈 일별시세정보" [ref=f4e98] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - cell "kosdaq_dd_trd" [ref=f4e99]
+              - row [ref=f4e100]:
+                - cell "4" [ref=f4e101]
+                - cell [ref=f4e102]:
+                  - link "채권지수 시세정보" [ref=f4e103] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - cell "bon_dd_trd" [ref=f4e104]
+              - row [ref=f4e105]:
+                - cell "5" [ref=f4e106]
+                - cell [ref=f4e107]:
+                  - link "파생상품지수 시세정보" [ref=f4e108] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - cell "drvprod_dd_trd" [ref=f4e109]
+  - generic [ref=f4e111]:
+    - list [ref=f4e112]:
+      - listitem [ref=f4e113]:
+        - link "개인정보처리방침" [ref=f4e114] [cursor=pointer]:
+          - /url: http://info.krx.co.kr/contents/KRX/06/06070100/KRX06070100.jsp
+      - listitem [ref=f4e115]:
+        - link "법적고지" [ref=f4e116] [cursor=pointer]:
+          - /url: http://info.krx.co.kr/contents/KRX/06/06070200/KRX06070200.jsp
+    - generic [ref=f4e117]: "본사 : 48400 부산광역시 남구 문현금융로 40(문현동) TEL : 051-662-2000 사업자 등록번호 : 602-81-35420금융서비스업 대표자 : 정은보 서울 : 07320 서울특별시 영등포구 여의나루로 76(여의도동) TEL : 1577-0088/ 02-3774-9000 통신판매신고 부산남구 : 0036호Copyright 2020 KOREA Exchange all rights reserved. krxdata@krx.co.kr"
+    - link "Family Site" [ref=f4e118] [cursor=pointer]:
+      - /url: javascript:void(0);

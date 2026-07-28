@@ -1,0 +1,511 @@
+- generic [active] [ref=f1e1]:
+  - link "본문내용 바로가기" [ref=f1e2] [cursor=pointer]:
+    - /url: "#container"
+  - generic [ref=f1e3]:
+    - generic [ref=f1e4]:
+      - generic [ref=f1e5]:
+        - button [ref=f1e6] [cursor=pointer]:
+          - img "전체메뉴" [ref=f1e7]
+        - heading [level=1] [ref=f1e8]:
+          - link [ref=f1e9] [cursor=pointer]:
+            - /url: /contents/MDC/MAIN/main/index.cmd
+            - img "KRX Data Marketplace" [ref=f1e10]
+        - generic [ref=f1e11]:
+          - term [ref=f1e13] [cursor=pointer]: 종목검색
+          - textbox "검색어를 입력해주세요." [ref=f1e14]
+          - button [ref=f1e15] [cursor=pointer]:
+            - img "검색" [ref=f1e16]
+        - button "ENG" [ref=f1e18] [cursor=pointer]
+        - generic [ref=f1e19]:
+          - link [ref=f1e20] [cursor=pointer]:
+            - /url: /contents/MDC/COMS/client/MDCCOMS001.cmd
+            - img "로그인" [ref=f1e21]
+          - link [ref=f1e22] [cursor=pointer]:
+            - /url: /contents/MDC/DATA/datasale/index.cmd?viewNm=MDCDATA300
+            - img "myCart" [ref=f1e23]
+          - link [ref=f1e24] [cursor=pointer]:
+            - /url: /contents/MDC/COMS/client/MDCCOMS002_S0.cmd
+            - img "회원가입" [ref=f1e25]
+      - list [ref=f1e27]:
+        - listitem [ref=f1e28]:
+          - text: ·
+          - link "서비스 소개" [ref=f1e29] [cursor=pointer]:
+            - /url: javascript:void(0);
+        - listitem [ref=f1e30]:
+          - text: ·
+          - link "통계" [ref=f1e31] [cursor=pointer]:
+            - /url: javascript:void(0);
+        - listitem [ref=f1e32]:
+          - text: ·
+          - link "쉽게 보는 통계" [ref=f1e33] [cursor=pointer]:
+            - /url: javascript:void(0);
+        - listitem [ref=f1e34]:
+          - text: ·
+          - link "깊이 있는 통계" [ref=f1e35] [cursor=pointer]:
+            - /url: javascript:void(0);
+        - listitem [ref=f1e36]:
+          - text: ·
+          - link "간행물" [ref=f1e37] [cursor=pointer]:
+            - /url: javascript:void(0);
+        - listitem [ref=f1e38]:
+          - link "데이터 상품" [ref=f1e39] [cursor=pointer]:
+            - /url: javascript:void(0);
+    - generic [ref=f1e40]:
+      - button [ref=f1e41] [cursor=pointer]:
+        - img "다음" [ref=f1e42]
+      - button [ref=f1e43] [cursor=pointer]:
+        - img "이전" [ref=f1e44]
+      - generic [ref=f1e45]:
+        - button [ref=f1e46] [cursor=pointer]
+        - button [ref=f1e47] [cursor=pointer]
+      - generic [ref=f1e49]:
+        - complementary [ref=f1e50]:
+          - list [ref=f1e51]:
+            - listitem [ref=f1e52] [cursor=pointer]:
+              - link "기본통계" [ref=f1e53]:
+                - /url: javascript:void(0);
+            - listitem [ref=f1e54] [cursor=pointer]:
+              - link "조회수TOP" [ref=f1e55]:
+                - /url: javascript:void(0);
+          - list [ref=f1e56]:
+            - listitem [ref=f1e57]:
+              - link "지수" [ref=f1e58] [cursor=pointer]:
+                - /url: javascript:void(0);
+              - list [ref=f1e59]:
+                - listitem [ref=f1e60]:
+                  - link "주가지수" [ref=f1e61] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e62]:
+                  - link "채권지수" [ref=f1e63] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e64]:
+                  - link "파생 및 기타지수" [ref=f1e65] [cursor=pointer]:
+                    - /url: javascript:void(0);
+            - listitem [ref=f1e66]:
+              - link "주식" [ref=f1e67] [cursor=pointer]:
+                - /url: javascript:void(0);
+              - list [ref=f1e68]:
+                - listitem [ref=f1e69]:
+                  - link "종목시세" [ref=f1e70] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e71]:
+                  - link "종목정보" [ref=f1e72] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e73]:
+                  - link "거래실적" [ref=f1e74] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e75]:
+                  - link "기타증권" [ref=f1e76] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e77]:
+                  - link "세부안내" [ref=f1e78] [cursor=pointer]:
+                    - /url: javascript:void(0);
+            - listitem [ref=f1e79]:
+              - link "증권상품" [ref=f1e80] [cursor=pointer]:
+                - /url: javascript:void(0);
+              - list [ref=f1e81]:
+                - listitem [ref=f1e82]:
+                  - link "ETF" [ref=f1e83] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e84]:
+                  - link "ETN" [ref=f1e85] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e86]:
+                  - link "ELW" [ref=f1e87] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e88]:
+                  - link "상장형 수익증권" [ref=f1e89] [cursor=pointer]:
+                    - /url: javascript:void(0);
+            - listitem [ref=f1e90]:
+              - link "채권" [ref=f1e91] [cursor=pointer]:
+                - /url: javascript:void(0);
+              - list [ref=f1e92]:
+                - listitem [ref=f1e93]:
+                  - link "종목시세" [ref=f1e94] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e95]:
+                  - link "종목정보" [ref=f1e96] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e97]:
+                  - link "거래실적" [ref=f1e98] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e99]:
+                  - link "세부안내" [ref=f1e100] [cursor=pointer]:
+                    - /url: javascript:void(0);
+            - listitem [ref=f1e101]:
+              - link "파생상품" [ref=f1e102] [cursor=pointer]:
+                - /url: javascript:void(0);
+              - list [ref=f1e103]:
+                - listitem [ref=f1e104]:
+                  - link "종목시세" [ref=f1e105] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e106]:
+                  - link "종목정보" [ref=f1e107] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e108]:
+                  - link "거래실적" [ref=f1e109] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e110]:
+                  - link "세부안내" [ref=f1e111] [cursor=pointer]:
+                    - /url: javascript:void(0);
+            - listitem [ref=f1e112]:
+              - link "일반상품" [ref=f1e113] [cursor=pointer]:
+                - /url: javascript:void(0);
+              - list [ref=f1e114]:
+                - listitem [ref=f1e115]:
+                  - link "석유" [ref=f1e116] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e117]:
+                  - link "금" [ref=f1e118] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e119]:
+                  - link "배출권" [ref=f1e120] [cursor=pointer]:
+                    - /url: javascript:void(0);
+            - listitem [ref=f1e121]:
+              - link "해외연계시장" [ref=f1e122] [cursor=pointer]:
+                - /url: javascript:void(0);
+              - list [ref=f1e123]:
+                - listitem [ref=f1e124]:
+                  - link "EUREX" [ref=f1e125] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e126]:
+                  - link "동경거래소 시세" [ref=f1e127] [cursor=pointer]:
+                    - /url: javascript:void(0);
+            - listitem [ref=f1e128]:
+              - link "파생결합증권" [ref=f1e129] [cursor=pointer]:
+                - /url: javascript:void(0);
+              - list [ref=f1e130]:
+                - listitem [ref=f1e131]:
+                  - link "청약·매매 가능 상품" [ref=f1e132] [cursor=pointer]:
+                    - /url: javascript:void(0);
+                - listitem [ref=f1e133]:
+                  - link "발행·상환종목" [ref=f1e134] [cursor=pointer]:
+                    - /url: javascript:void(0);
+          - button "전체목록 Download" [ref=f1e135] [cursor=pointer]
+        - generic [ref=f1e136]:
+          - generic [ref=f1e137]:
+            - article [ref=f1e138]:
+              - generic [ref=f1e140]:
+                - heading "Korea Value-up 3,288.23" [level=3] [ref=f1e141]:
+                  - generic [ref=f1e142]: Korea Value-up
+                  - emphasis [ref=f1e143]: 3,288.23
+                - emphasis [ref=f1e144]: ▲96.70 (+3.03%)
+                - paragraph [ref=f1e145]:
+                  - generic [ref=f1e146]: 2026.07.21 PM 10:59
+                - generic [ref=f1e147]:
+                  - emphasis [ref=f1e148] [cursor=pointer]: Day
+                  - emphasis [ref=f1e149] [cursor=pointer]: Week
+                - list [ref=f1e151]:
+                  - listitem [ref=f1e152]:
+                    - text: 상한가
+                    - emphasis [ref=f1e153]: ↑0
+                  - listitem [ref=f1e154]:
+                    - text: 상승
+                    - emphasis [ref=f1e155]: ▲57
+                  - listitem [ref=f1e156]:
+                    - text: 보합
+                    - emphasis [ref=f1e157]: "6"
+                  - listitem [ref=f1e158]:
+                    - text: 하락
+                    - emphasis [ref=f1e159]: ▼37
+                  - listitem [ref=f1e160]:
+                    - text: 하한가
+                    - emphasis [ref=f1e161]: ↓0
+              - list [ref=f1e162]:
+                - listitem [ref=f1e163] [cursor=pointer]:
+                  - link [ref=f1e164]:
+                    - /url: javascript:void(0);
+                    - text: Korea Value-up
+                    - term [ref=f1e165]:
+                      - text: 3,288.23
+                      - emphasis [ref=f1e166]: (+3.03%)
+                - listitem [ref=f1e167] [cursor=pointer]:
+                  - link [ref=f1e168]:
+                    - /url: javascript:void(0);
+                    - text: KRX TMI
+                    - term [ref=f1e169]:
+                      - text: 4,219.33
+                      - emphasis [ref=f1e170]: (+3.64%)
+                - listitem [ref=f1e171] [cursor=pointer]:
+                  - link [ref=f1e172]:
+                    - /url: javascript:void(0);
+                    - text: KRX 300
+                    - term [ref=f1e173]:
+                      - text: 4,643.19
+                      - emphasis [ref=f1e174]: (+3.80%)
+                - listitem [ref=f1e175] [cursor=pointer]:
+                  - link [ref=f1e176]:
+                    - /url: javascript:void(0);
+                    - text: KOSPI
+                    - term [ref=f1e177]:
+                      - text: 6,747.95
+                      - emphasis [ref=f1e178]: (+3.56%)
+                - listitem [ref=f1e179] [cursor=pointer]:
+                  - link [ref=f1e180]:
+                    - /url: javascript:void(0);
+                    - text: KOSPI 200
+                    - term [ref=f1e181]:
+                      - text: 1,073.39
+                      - emphasis [ref=f1e182]: (+3.96%)
+                - listitem [ref=f1e183] [cursor=pointer]:
+                  - link [ref=f1e184]:
+                    - /url: javascript:void(0);
+                    - text: KOSDAQ
+                    - term [ref=f1e185]:
+                      - text: "753.34"
+                      - emphasis [ref=f1e186]: (+0.49%)
+                - listitem [ref=f1e187] [cursor=pointer]:
+                  - link [ref=f1e188]:
+                    - /url: javascript:void(0);
+                    - text: KOSDAQ 150
+                    - term [ref=f1e189]:
+                      - text: 1,276.35
+                      - emphasis [ref=f1e190]: (+0.13%)
+            - article [ref=f1e191]:
+              - link [ref=f1e192] [cursor=pointer]:
+                - /url: javascript:void(0);
+                - img "더보기" [ref=f1e193]
+              - heading "투자자별 매매동향" [level=4] [ref=f1e194]
+              - list [ref=f1e195]:
+                - listitem [ref=f1e196]:
+                  - button "KOSPI" [ref=f1e197] [cursor=pointer]
+                - listitem [ref=f1e198]:
+                  - button "KOSDAQ" [ref=f1e199] [cursor=pointer]
+                - listitem [ref=f1e200]:
+                  - button "KONEX" [ref=f1e201] [cursor=pointer]
+                - listitem [ref=f1e202]:
+                  - button "KOSPI200선물" [ref=f1e203] [cursor=pointer]
+                - listitem [ref=f1e204]:
+                  - button "KOSPI200옵션" [ref=f1e205] [cursor=pointer]
+              - generic [ref=f1e206]:
+                - term
+                - table "투자자별 매매동향" [ref=f1e208]:
+                  - rowgroup [ref=f1e214]:
+                    - row [ref=f1e215]:
+                      - columnheader "구분" [ref=f1e216]
+                      - columnheader "매도" [ref=f1e217]
+                      - columnheader "매수" [ref=f1e218]
+                      - columnheader "순매수" [ref=f1e219]
+                  - rowgroup [ref=f1e220]:
+                    - row [ref=f1e221]:
+                      - cell "기관(십억원)" [ref=f1e222]
+                      - cell "6,920" [ref=f1e223]
+                      - cell "8,294" [ref=f1e224]
+                      - cell "1,374" [ref=f1e225]
+                    - row [ref=f1e226]:
+                      - cell "외국인(십억원)" [ref=f1e227]
+                      - cell "9,172" [ref=f1e228]
+                      - cell "9,467" [ref=f1e229]
+                      - cell "295" [ref=f1e230]
+                    - row [ref=f1e231]:
+                      - cell "개인(십억원)" [ref=f1e232]
+                      - cell "8,528" [ref=f1e233]
+                      - cell "6,886" [ref=f1e234]
+                      - cell "-1,642" [ref=f1e235]
+            - article [ref=f1e236]:
+              - link [ref=f1e237] [cursor=pointer]:
+                - /url: /contents/MDC/COMS/board/MDCCOMS010_S1.cmd?boardId=MDCINFO004
+                - img "더보기" [ref=f1e238]
+              - heading "시장운영공지" [level=4] [ref=f1e239]
+              - list [ref=f1e240]:
+                - listitem [ref=f1e241]:
+                  - button "KOSPI" [ref=f1e242] [cursor=pointer]
+                - listitem [ref=f1e243]:
+                  - button "KOSDAQ" [ref=f1e244] [cursor=pointer]
+                - listitem [ref=f1e245]:
+                  - button "파생상품" [ref=f1e246] [cursor=pointer]
+                - listitem [ref=f1e247]:
+                  - button "채권" [ref=f1e248] [cursor=pointer]
+              - table [ref=f1e251]:
+                - rowgroup [ref=f1e255]:
+                  - row [ref=f1e256]:
+                    - cell [ref=f1e257]:
+                      - link "주식워런트증권 신규상장(한국투자증권(주) (상장일 2026.04.14))" [ref=f1e258] [cursor=pointer]:
+                        - /url: javascript:void(0);
+                    - cell "2026-04-13" [ref=f1e259]
+                  - row [ref=f1e260]:
+                    - cell [ref=f1e261]:
+                      - link "주식워런트증권 신규상장(미래에셋증권(주) (상장일 2026.04.10))" [ref=f1e262] [cursor=pointer]:
+                        - /url: javascript:void(0);
+                    - cell "2026-04-09" [ref=f1e263]
+                  - row [ref=f1e264]:
+                    - cell [ref=f1e265]:
+                      - link "주식워런트증권 신규상장(한국투자증권(주) (상장일 2026.03.18))" [ref=f1e266] [cursor=pointer]:
+                        - /url: javascript:void(0);
+                    - cell "2026-03-17" [ref=f1e267]
+          - generic [ref=f1e268]:
+            - article [ref=f1e269]:
+              - link [ref=f1e270] [cursor=pointer]:
+                - /url: javascript:gotoMenu('/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC03010201&searchType=1','MDC03010201');
+                - img "더보기" [ref=f1e271]
+              - heading "시장별 매매동향" [level=4] [ref=f1e272]
+              - list [ref=f1e273]:
+                - listitem [ref=f1e274]:
+                  - button "KOSPI" [ref=f1e275] [cursor=pointer]
+                - listitem [ref=f1e276]:
+                  - button "KOSDAQ" [ref=f1e277] [cursor=pointer]
+                - listitem [ref=f1e278]:
+                  - button "파생상품" [ref=f1e279] [cursor=pointer]
+              - generic [ref=f1e280]:
+                - term [ref=f1e281]: 20분 지연
+                - table [ref=f1e282]:
+                  - rowgroup
+                  - rowgroup [ref=f1e300]:
+                    - row [ref=f1e301]:
+                      - cell "거래대금" [ref=f1e302]
+                      - cell [ref=f1e303]:
+                        - paragraph [ref=f1e306]: 24,811 십억원
+                      - cell [ref=f1e307]
+                      - cell [ref=f1e308]
+                      - cell [ref=f1e309]
+                      - cell [ref=f1e310]
+                      - cell [ref=f1e311]
+                      - cell [ref=f1e312]
+                      - cell [ref=f1e313]
+                      - cell [ref=f1e314]
+                      - cell [ref=f1e315]
+                      - cell [ref=f1e316]
+                      - cell [ref=f1e317]
+                      - cell [ref=f1e318]
+                      - cell [ref=f1e319]
+                      - cell [ref=f1e320]
+                    - row [ref=f1e321]:
+                      - cell "거래량" [ref=f1e322]
+                      - cell [ref=f1e323]:
+                        - paragraph [ref=f1e326]: 391 백만주
+                      - cell [ref=f1e327]
+                      - cell [ref=f1e328]
+                      - cell [ref=f1e329]
+                      - cell [ref=f1e330]
+                      - cell [ref=f1e331]
+                      - cell [ref=f1e332]
+                      - cell [ref=f1e333]
+                      - cell [ref=f1e334]
+                      - cell [ref=f1e335]
+                      - cell [ref=f1e336]
+                      - cell [ref=f1e337]
+                      - cell [ref=f1e338]
+                      - cell [ref=f1e339]
+                      - cell [ref=f1e340]
+            - article [ref=f1e341]:
+              - link [ref=f1e342] [cursor=pointer]:
+                - /url: javascript:gotoMenu('/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC03010201','MDC03010201');
+                - img "더보기" [ref=f1e343]
+              - heading "상장종목 현황" [level=4] [ref=f1e344]
+              - generic [ref=f1e345]:
+                - term [ref=f1e346]: 20분 지연
+                - table [ref=f1e348]:
+                  - rowgroup [ref=f1e354]:
+                    - row [ref=f1e355]:
+                      - columnheader "구분" [ref=f1e356]
+                      - columnheader "KOSPI" [ref=f1e357]
+                      - columnheader "KOSDAQ" [ref=f1e358]
+                      - columnheader "KONEX" [ref=f1e359]
+                  - rowgroup [ref=f1e360]:
+                    - row [ref=f1e361]:
+                      - cell "회사수" [ref=f1e362]
+                      - cell "833" [ref=f1e363]
+                      - cell "1,818" [ref=f1e364]
+                      - cell "108" [ref=f1e365]
+                    - row [ref=f1e366]:
+                      - cell "종목수" [ref=f1e367]
+                      - cell "943" [ref=f1e368]
+                      - cell "1,821" [ref=f1e369]
+                      - cell "108" [ref=f1e370]
+                    - row [ref=f1e371]:
+                      - cell "상장주식수(백만주)" [ref=f1e372]
+                      - cell "59,854" [ref=f1e373]
+                      - cell "46,339" [ref=f1e374]
+                      - cell "808" [ref=f1e375]
+                    - row [ref=f1e376]:
+                      - cell "시가총액(십억원)" [ref=f1e377]
+                      - cell "5,525,146" [ref=f1e378]
+                      - cell "421,060" [ref=f1e379]
+                      - cell "3,246" [ref=f1e380]
+                    - row [ref=f1e381]:
+                      - cell "신규상장 기업수*" [ref=f1e382]
+                      - cell "1" [ref=f1e383]
+                      - cell "33" [ref=f1e384]
+                      - cell "2" [ref=f1e385]
+              - paragraph [ref=f1e386]: "*신규상장 기업수 : 당일 기준 연누적 데이터"
+            - article [ref=f1e387]:
+              - link [ref=f1e388] [cursor=pointer]:
+                - /url: javascript:gotoMenu('/contents/MDC/MGZN/publication/MDCMGZN001.cmd?menuId=MDCMGZN001','MDCMGZN001')
+                - img "더보기" [ref=f1e389]
+              - heading "발간자료" [level=4] [ref=f1e390]
+              - list [ref=f1e391]:
+                - listitem [ref=f1e392] [cursor=pointer]:
+                  - link [ref=f1e393]:
+                    - /url: javascript:void(0);
+                    - img "증권" [ref=f1e394]
+                    - generic [ref=f1e395]: 증권시장지
+                - listitem [ref=f1e396] [cursor=pointer]:
+                  - link [ref=f1e397]:
+                    - /url: javascript:void(0);
+                    - img "통계월보" [ref=f1e398]
+                    - text: 통계월보
+                - listitem [ref=f1e399] [cursor=pointer]:
+                  - link [ref=f1e400]:
+                    - /url: javascript:void(0);
+                    - img "KRX MARKET" [ref=f1e401]
+                    - generic [ref=f1e402]: KRXMARKET
+                - listitem [ref=f1e403] [cursor=pointer]:
+                  - link [ref=f1e404]:
+                    - /url: javascript:void(0);
+                    - img "KRX ETF·ETN MONTHLY" [ref=f1e405]
+                    - generic [ref=f1e406]: KRXETF·ETNMONTHLY
+          - button [ref=f1e407] [cursor=pointer]
+          - button [ref=f1e408] [cursor=pointer]:
+            - generic [ref=f1e409]: QuickMenu
+          - article [ref=f1e410]:
+            - generic [ref=f1e411]:
+              - list [ref=f1e412]:
+                - listitem [ref=f1e413]:
+                  - link [ref=f1e414] [cursor=pointer]:
+                    - /url: javascript:window.open('/contents/MDC/STAT/dataDic/dictionary/index.cmd?menuId=MDC0205', 'dictionary', 'width=1000,height=800,resizable=yes'); void(0);
+                    - img "Data Marketplace 종합사전" [ref=f1e415]
+                    - generic [ref=f1e416]: 데이터종합사전
+                - listitem [ref=f1e417]:
+                  - link [ref=f1e418] [cursor=pointer]:
+                    - /url: javascript:gotoMenu('/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0302','MDC0302');
+                    - img "순위 통계" [ref=f1e419]
+                    - text: 순위 통계
+                - listitem [ref=f1e420]:
+                  - link [ref=f1e421] [cursor=pointer]:
+                    - /url: javascript:gotoMenu('/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0203','MDC0203');
+                    - img "공매도 통계" [ref=f1e422]
+                    - text: 공매도 통계
+                - listitem [ref=f1e423]:
+                  - link [ref=f1e424] [cursor=pointer]:
+                    - /url: javascript:gotoMenu('/contents/MDC/HARD/hardController/MDCHARD003.cmd','MDC04');
+                    - img "기업분석 보고서" [ref=f1e425]
+                    - generic [ref=f1e426]: 기업분석보고서
+                - listitem [ref=f1e427]:
+                  - link [ref=f1e428] [cursor=pointer]:
+                    - /url: javascript:gotoMenu('/contents/MDC/HARD/hardController/MDCHARD008.cmd','MDC04');
+                    - img "투자분석 정보" [ref=f1e429]
+                    - generic [ref=f1e430]: 투자분석정보
+                - listitem [ref=f1e431]:
+                  - link [ref=f1e432] [cursor=pointer]:
+                    - /url: javascript:gotoMenu('/contents/MDC/DATA/datasale/index.cmd?viewNm=MDCDATA001','MDCDATA001');
+                    - img "데이터 구입" [ref=f1e433]
+                    - text: 데이터 구입
+              - link [ref=f1e434] [cursor=pointer]:
+                - /url: https://openapi.krx.co.kr
+                - img "OPEN API 사이트로 이동" [ref=f1e435]
+    - contentinfo [ref=f1e436]:
+      - generic [ref=f1e438]:
+        - list [ref=f1e439]:
+          - listitem [ref=f1e440]:
+            - link "개인정보처리방침" [ref=f1e441] [cursor=pointer]:
+              - /url: http://info.krx.co.kr/contents/KRX/06/06070100/KRX06070100.jsp
+          - listitem [ref=f1e442]:
+            - link "법적고지" [ref=f1e443] [cursor=pointer]:
+              - /url: http://info.krx.co.kr/contents/KRX/06/06070200/KRX06070200.jsp
+          - listitem [ref=f1e444]:
+            - link "사이트맵" [ref=f1e445] [cursor=pointer]:
+              - /url: javascript:void(0);
+        - paragraph [ref=f1e446]: "본사 : 48400 부산광역시 남구 문현금융로 40(문현동) TEL : 051-662-2000 사업자 등록번호 : 602-81-35420금융서비스업 대표자 : 정은보 서울 : 07320 서울특별시 영등포구 여의나루로 76(여의도동) TEL : 1577-0088/ 02-3774-9000 통신판매신고 부산남구 : 0036호Copyright 2020 KOREA Exchange all rights reserved. krxdata@krx.co.kr"
+        - term [ref=f1e447] [cursor=pointer]: Family Site
+        - paragraph [ref=f1e448]:
+          - img "KRX Market Data, Verified and Trusted" [ref=f1e449]
